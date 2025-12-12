@@ -198,94 +198,147 @@ struct EditorSectionView: View {
         [.leftThird, .centerThirdVertical, .rightThird, .topThird, .centerThirdHorizontal, .bottomThird, .center, .fullScreen]
     ]
     
-    private let buttonSize: CGFloat = 32
-    private let spacing: CGFloat = 6
-    private let groupSpacing: CGFloat = 12
-    private let padding: CGFloat = 10
-    private let rowSpacing: CGFloat = 8
+    private let baseButtonSize: CGFloat = 32
+    private let baseSpacing: CGFloat = 6
+    private let baseGroupSpacing: CGFloat = 12
+    private let basePadding: CGFloat = 10
+    private let baseRowSpacing: CGFloat = 8
+    private let baseCircleSize: CGFloat = 150
+    private let baseNumberFontSize: CGFloat = 50
+    private let baseSizeFontSize: CGFloat = 20
+    private let baseSizeTopPadding: CGFloat = 110
+    private let baseButtonsTopPadding: CGFloat = 20
+    
+    private func scaleFactor(for size: CGSize) -> CGFloat {
+        let widthScale = size.width / 320
+        let heightScale = size.height / 440
+        return min(min(widthScale, heightScale), 1.0)
+    }
+    
+    private func isCompact(size: CGSize) -> Bool {
+        return size.width < 320 || size.height < 440
+    }
+    
+    private func isVeryCompact(size: CGSize) -> Bool {
+        return size.width < 200 || size.height < 280
+    }
+    
+    private func isTiny(size: CGSize) -> Bool {
+        return size.width < 140 || size.height < 180
+    }
     
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 26)
-                .strokeBorder(Color.accentColor.opacity(0.5), lineWidth: 3)
-                .background(
-                    RoundedRectangle(cornerRadius: 26)
-                        .fill(Color.accentColor.opacity(0.1))
-                )
+        GeometryReader { geometry in
+            let size = geometry.size
+            let scale = scaleFactor(for: size)
+            let compact = isCompact(size: size)
+            let veryCompact = isVeryCompact(size: size)
+            let tiny = isTiny(size: size)
             
-            VStack(spacing: 0) {
-                Spacer()
+            let buttonSize = max(16, baseButtonSize * scale)
+            let spacing = max(2, baseSpacing * scale)
+            let groupSpacing = max(4, baseGroupSpacing * scale)
+            let padding = max(4, basePadding * scale)
+            let rowSpacing = max(2, baseRowSpacing * scale)
+            let circleSize = max(40, baseCircleSize * scale)
+            let numberFontSize = max(16, baseNumberFontSize * scale)
+            let sizeFontSize = max(10, baseSizeFontSize * scale)
+            let sizeTopPadding = max(20, baseSizeTopPadding * scale)
+            let buttonsTopPadding = max(8, baseButtonsTopPadding * scale)
+            
+            ZStack {
+                RoundedRectangle(cornerRadius: 26)
+                    .strokeBorder(Color.accentColor.opacity(0.5), lineWidth: 3)
+                    .background(
+                        RoundedRectangle(cornerRadius: 26)
+                            .fill(Color.accentColor.opacity(0.1))
+                    )
                 
-                ZStack {
-                    Circle()
-                        .strokeBorder(Color.accentColor, lineWidth: 2)
-                        .background(
-                            Circle()
-                                .fill(Color.accentColor.opacity(0.5))
-                        )
-                        .frame(width: 150, height: 150)
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
                     
-                    Text("\(number)")
-                        .font(.system(size: 50, weight: .light))
-                        .foregroundColor(Color.accentColor)
-                        .shadow(color: Color.black.opacity(0.4), radius: 2, x: 0, y: -1)
-                }
-                
-                Text("\(Int(sectionWindow.windowSize.width))x\(Int(sectionWindow.windowSize.height))")
-                    .font(.system(size: 20, weight: .light))
-                    .foregroundColor(Color.accentColor.opacity(0.85))
-                    .shadow(color: Color.black.opacity(0.4), radius: 2, x: 0, y: -1)
-                    .padding(.top, 110)
-                
-                VStack(spacing: rowSpacing) {
-                    ForEach(Array(buttonGroups.enumerated()), id: \.offset) { groupIndex, group in
-                        HStack(spacing: spacing) {
-                            ForEach(group, id: \.self) { preset in
-                                PositioningButton(preset: preset) {
-                                    applyPositioningPreset(preset)
-                                }
-                                .frame(width: buttonSize, height: buttonSize)
-                            }
+                    if !tiny {
+                        ZStack {
+                            Circle()
+                                .strokeBorder(Color.accentColor, lineWidth: compact ? 1 : 2)
+                                .background(
+                                    Circle()
+                                        .fill(Color.accentColor.opacity(0.5))
+                                )
+                                .frame(width: circleSize, height: circleSize)
+                            
+                            Text("\(number)")
+                                .font(.system(size: numberFontSize, weight: .light))
+                                .foregroundColor(Color.accentColor)
+                                .shadow(color: Color.black.opacity(0.4), radius: 2, x: 0, y: -1)
                         }
                         
-                        if groupIndex < buttonGroups.count - 1 {
-                            Spacer()
-                                .frame(height: groupSpacing - rowSpacing)
+                        if !veryCompact {
+                            Text("\(Int(sectionWindow.windowSize.width))x\(Int(sectionWindow.windowSize.height))")
+                                .font(.system(size: sizeFontSize, weight: .light))
+                                .foregroundColor(Color.accentColor.opacity(0.85))
+                                .shadow(color: Color.black.opacity(0.4), radius: 2, x: 0, y: -1)
+                                .padding(.top, sizeTopPadding)
                         }
+                    } else {
+                        Text("\(number)")
+                            .font(.system(size: max(14, numberFontSize), weight: .light))
+                            .foregroundColor(Color.accentColor)
+                            .shadow(color: Color.black.opacity(0.4), radius: 2, x: 0, y: -1)
                     }
-                }
-                .padding(padding)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.accentColor.opacity(0.15))
-                )
-                .padding(.top, 20)
-                
-                Spacer()
-            }
-            
-            VStack {
-                HStack {
-                    Spacer()
                     
-                    Button(action: {
-                        onDelete?()
-                    }) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 18, weight: .regular))
-                            .foregroundColor(.white)
-                            .frame(width: 28, height: 28)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.accentColor.opacity(0.25))
-                            )
+                    if !veryCompact {
+                        VStack(spacing: rowSpacing) {
+                            ForEach(Array(buttonGroups.enumerated()), id: \.offset) { groupIndex, group in
+                                HStack(spacing: spacing) {
+                                    ForEach(group, id: \.self) { preset in
+                                        PositioningButton(preset: preset) {
+                                            applyPositioningPreset(preset)
+                                        }
+                                        .frame(width: buttonSize, height: buttonSize)
+                                    }
+                                }
+                                
+                                if groupIndex < buttonGroups.count - 1 {
+                                    Spacer()
+                                        .frame(height: max(1, groupSpacing - rowSpacing))
+                                }
+                            }
+                        }
+                        .padding(padding)
+                        .background(
+                            RoundedRectangle(cornerRadius: compact ? 8 : 12)
+                                .fill(Color.accentColor.opacity(0.15))
+                        )
+                        .padding(.top, buttonsTopPadding)
                     }
-                    .buttonStyle(PlainButtonStyle())
-                    .padding(.top, 20)
-                    .padding(.trailing, 20)
+                    
+                    Spacer(minLength: 0)
                 }
                 
-                Spacer()
+                VStack {
+                    HStack {
+                        Spacer()
+                        
+                        Button(action: {
+                            onDelete?()
+                        }) {
+                            Image(systemName: "trash")
+                                .font(.system(size: compact ? 14 : 18, weight: .regular))
+                                .foregroundColor(.white)
+                                .frame(width: compact ? 22 : 28, height: compact ? 22 : 28)
+                                .background(
+                                    RoundedRectangle(cornerRadius: compact ? 4 : 6)
+                                        .fill(Color.accentColor.opacity(0.25))
+                                )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .padding(.top, compact ? 10 : 20)
+                        .padding(.trailing, compact ? 10 : 20)
+                    }
+                    
+                    Spacer()
+                }
             }
         }
         .ignoresSafeArea()
