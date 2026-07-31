@@ -121,15 +121,23 @@ struct SettingsView: View {
                     }
                 }
 
+                if updater.isChecking {
+                    Text("检查更新中...")
+                        .foregroundColor(.secondary)
+                } else if updater.isDownloading {
+                    Text("下载更新中...")
+                        .foregroundColor(.secondary)
+                } else if updater.downloadFailed {
+                    Text("下载失败")
+                        .foregroundColor(.red)
+                }
+
                 Spacer()
 
                 HStack(spacing: 12) {
-                    if updater.isChecking {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    } else if updater.isUpdatable == true {
+                    if updater.isUpdatable == true && !updater.isDownloading {
                         Button("更新到 \(updater.latestVersion ?? "")") {
-                            updater.checkForUpdates()
+                            updater.userTriggerUpdate()
                         }
                     }
 

@@ -367,7 +367,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
                 }
             }
             
-            appUpdater.checkForUpdates()
+            appUpdater.autoCheckAndDownload()
         }
     }
     
