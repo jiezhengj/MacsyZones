@@ -21,8 +21,6 @@ class MacsyReady: ObservableObject {
 }
 
 let macsyReady = MacsyReady()
-let macsyProLock = ProLock()
-let donationReminder = DonationReminder()
 let appUpdater = AppUpdater()
 
 @available(macOS 12.0, *)
