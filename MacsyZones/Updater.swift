@@ -18,47 +18,33 @@ class AppUpdater: ObservableObject {
     @Published var isDownloading = false
 
     @Published var latestVersion: String?
-    @Published var latestDownloadURL: URL?
 
     let updater = GitHubUpdater()
 
-    /// 只检查是否有新版本，不下载
-    func checkForUpdates() {
+    func checkForUpdates(download: Bool = false) {
         Task { @MainActor in
             self.isChecking = true
         }
 
-        updater.checkLatestRelease { latestRelease in
-            guard let latestRelease = latestRelease else {
+        updater.checkForUpdates { version in
+            guard let version = version else {
                 Task { @MainActor in
                     self.isChecking = false
+                    self.isDownloading = false
                     self.isUpdatable = false
                 }
                 return
             }
 
             Task { @MainActor in
-                self.latestVersion = latestRelease.version
-                self.latestDownloadURL = latestRelease.url
+                self.latestVersion = version
                 self.isChecking = false
                 self.isUpdatable = true
+                self.isDownloading = true
             }
-        }
-    }
-
-    /// 下载并安装更新
-    func downloadAndInstall() {
-        guard let downloadURL = latestDownloadURL else {
-            debugLog("[Updater] 没有下载地址")
-            return
-        }
-
-        Task { @MainActor in
-            self.isDownloading = true
-        }
-
-        updater.downloadDmg(from: downloadURL, version: latestVersion ?? "") { success in
+        } onDownloaded: { success in
             Task { @MainActor in
+                self.isChecking = false
                 self.isDownloading = false
             }
         }
@@ -161,11 +147,19 @@ class GitHubUpdater {
     let fileManager = FileManager.default
     let applicationsDirectory = NSSearchPathForDirectoriesInDomains(.applicationDirectory, .userDomainMask, true).first!
     let appName = "MacsyZones"
-    
-    /// 检查最新版本
-    func checkLatestRelease(onChecked: @escaping ((version: String, url: URL)?) -> Void) {
-        githubAPI.checkLatestRelease { latestRelease in
-            onChecked(latestRelease)
+
+    func checkForUpdates(onChecked: ((String?) -> Void)? = nil, onDownloaded: ((Bool) -> Void)? = nil) {
+        githubAPI.checkLatestRelease { [self] latestRelease in
+            guard let latestRelease else {
+                onChecked?(nil)
+                return
+            }
+
+            onChecked?(latestRelease.version)
+
+            self.downloadDmg(from: latestRelease.url, version: latestRelease.version) { success in
+                onDownloaded?(success)
+            }
         }
     }
 
