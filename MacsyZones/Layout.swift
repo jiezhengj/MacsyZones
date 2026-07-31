@@ -1462,11 +1462,6 @@ class LayoutWindow: ObservableObject {
     func show(showLayouts: Bool = true, showSnapResizers: Bool = false, showSwitcher: Bool = true) {
         let wasShwon = isShown
         isShown = true
-
-        if appSettings.enableLayoutSwitcher && showLayouts && showSwitcher,
-           let snapScreen = getFocusedScreen() {
-            layoutSwitcherPanel.show(on: snapScreen)
-        }
         
         if !wasShwon {
             window.alphaValue = 0
@@ -1627,8 +1622,7 @@ class LayoutWindow: ObservableObject {
 
     func hide() {
         isShown = false
-        layoutSwitcherPanel.hide()
-        
+
         for sectionResizer in sectionResizers {
             NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0.35
@@ -1834,10 +1828,8 @@ class SnapResizer: NSWindow {
         }) {
             sectionWindow.window.orderOut(nil)
         }
-        
-        layoutSwitcherPanel.hide()
     }
-    
+
     override func mouseUp(with event: NSEvent) {
         isSnapResizing = false
         
@@ -2141,10 +2133,6 @@ class GridLayoutWindow {
 
         if let focusedScreen = getFocusedScreen() {
             window.setFrame(focusedScreen.visibleFrame, display: true, animate: false)
-
-            if appSettings.enableLayoutSwitcher {
-                layoutSwitcherPanel.show(on: focusedScreen)
-            }
         }
 
         selectionState.reset()
@@ -2166,7 +2154,6 @@ class GridLayoutWindow {
 
     func hide() {
         isShown = false
-        layoutSwitcherPanel.hide()
 
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.35

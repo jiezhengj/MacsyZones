@@ -17,7 +17,6 @@ import Accessibility
 import CoreGraphics
 
 var userLayouts: UserLayouts = .init()
-var layoutSwitcherPanel: LayoutSwitcherPanel = .init()
 var updateState: UpdateState = .init()
 var toLeaveElement: AXUIElement?
 var toLeaveSectionWindow: SectionWindow?
@@ -398,8 +397,6 @@ func onWindowMoved(observer: AXObserver, element: AXUIElement, notification: CFS
                     case .grid:
                         isFitting = false
                     }
-            } else if appSettings.enableLayoutSwitcher {
-                layoutSwitcherPanel.move(to: screen)
             }
 
             toLeaveElement = nil
@@ -448,11 +445,6 @@ func onWindowMoved(observer: AXObserver, element: AXUIElement, notification: CFS
     if NSEvent.pressedMouseButtons & 1 != 0 {
         isMovingAWindow = true
         checkSnapKeyOnWindowMoveStart()
-        
-        if appSettings.enableLayoutSwitcher && !isFitting,
-           let screen = getFocusedScreen() {
-            layoutSwitcherPanel.showActualMode(on: screen)
-        }
     }
 
     let currentLayout = userLayouts.currentLayout
@@ -955,9 +947,6 @@ func onMouseDragged(event: NSEvent) {
 
 func onMouseUp(event: NSEvent) {
     guard macsyReady.isReady else { return }
-
-    // Hide the layout switcher regardless of mode (actualMode or directMode).
-    layoutSwitcherPanel.hide()
 
     movingWindowInfo = nil
     isMovingAWindow = false
