@@ -145,6 +145,7 @@ struct OnboardingView: View {
             .padding(.bottom, 16)
         }
         .frame(width: 420)
+        .fixedSize(horizontal: false, vertical: true)
         .background(Color(NSColor.windowBackgroundColor))
     }
 }
