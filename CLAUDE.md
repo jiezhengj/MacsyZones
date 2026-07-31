@@ -5,7 +5,14 @@
 MacsyZones 是 macOS 窗口管理应用，此版本移除了所有商业限制（Pro 许可证、捐赠提醒）。
 
 **当前状态**: 自定义版本，仅供个人使用
-**上游仓库**: https://github.com/rohanrhu/MacsyZones
+**上游仓库**: https://github.com/rohanrhu/MacsyZones（仅用于同步更新）
+**本项目仓库**: https://github.com/jiezhengj/MacsyZones
+
+## ⚠️ 核心规则
+
+1. **永远不会向上游项目推送代码或提交 PR**
+2. **当用户说"推送 GitHub"时，一定仅指推送到本项目自己的仓库 `jiezhengj/MacsyZones`**
+3. 上游仓库仅用于拉取更新，是单向同步关系
 
 ---
 
