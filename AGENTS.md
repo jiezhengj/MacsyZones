@@ -4,8 +4,14 @@
 
 这是 MacsyZones 的自定义版本，移除了所有 Pro 许可证验证和捐赠提醒功能。
 
-**上游仓库**: https://github.com/rohanrhu/MacsyZones
-**自定义版本**: 移除商业限制，仅供个人使用
+**上游仓库**: https://github.com/rohanrhu/MacsyZones（仅用于同步更新，永远不会向上游推送代码或提交 PR）
+**本项目仓库**: https://github.com/jiezhengj/MacsyZones（所有推送操作的目标）
+
+## ⚠️ 重要规则
+
+1. **永远不会向上游项目推送代码或提交 PR**
+2. **当用户说"推送 GitHub"时，一定仅指推送到本项目自己的仓库 `jiezhengj/MacsyZones`**
+3. 上游仓库仅用于拉取更新，是单向同步关系
 
 ---
 
