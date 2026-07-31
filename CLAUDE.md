@@ -187,21 +187,67 @@ git show upstream/main:MacsyZones/<文件名>.swift | grep -A <行数> "<关键�
 
 ## Release 规范
 
-### Release 说明必备内容
+### Release 标题格式
 
-每个 release 说明必须包含：
+**固定格式**：`MacsyZones 中文定制版 vx.y.z`
 
-1. **更新内容**：分点列出本次更新的功能、修复、改进
-2. **上游版本映射**：说明基于哪个上游版本改造
-3. **致谢**：感谢原作者，格式如下：
-   ```
-   🙏 感谢原作者 [Oğuzhan Eroğlu](https://meowingcat.io/) 的杰出工作！
-   ```
+- ❌ 禁止在标题后添加 ` - 修复XXX` 等描述性后缀
+- ✅ 示例：`MacsyZones 中文定制版 v1.2.3`
+
+### Release 正文模板
+
+**必须使用以下精确格式**，不可随意增删分隔线或修改结构：
+
+```markdown
+## vx.y.z 更新内容
+
+### <分类标题>
+- <具体内容>
+- <具体内容>
+
+---
+
+**上游版本映射**：本版本基于上游 vX.Y.Z 改造
+
+---
+
+🙏 感谢原作者 [Oğuzhan Eroğlu](https://meowingcat.io/) 的杰出工作！
+```
+
+### 正文规则
+
+1. **一级标题**：`## vx.y.z 更新内容`（如 `## v1.2.3 更新内容`）
+2. **分类标题**：使用 `###` 开头，常见分类：
+   - `### Bug 修复`
+   - `### 新功能`
+   - `### UI 优化`
+   - `### 代码清理`
+   - `### 改造内容`
+3. **分项列表**：使用 `- ` 开头，每项一行
+4. **分隔线**：使用 `---` 分隔三个区块（更新内容 / 上游映射 / 致谢）
+5. **上游映射**：`**上游版本映射**：本版本基于上游 vX.Y.Z 改造`
+6. **致谢**：`🙏 感谢原作者 [Oğuzhan Eroğlu](https://meowingcat.io/) 的杰出工作！`
 
 ### 措辞规范
 
 - ✅ 推荐：感谢原作者的杰出工作
 - ❌ 避免：购买正版、支持开发者（显得像在做盗版）
+
+### 创建 Release 的 CLI 命令
+
+```bash
+# 1. 先推送 tag
+git tag -a vx.y.z -m "vx.y.z: <简要描述>"
+git push origin vx.y.z
+
+# 2. 创建 release（注意 --title 格式）
+gh release create vx.y.z \
+  --repo jiezhengj/MacsyZones \
+  --title "MacsyZones 中文定制版 vx.y.z" \
+  --notes "## vx.y.z 更新内容
+...
+"
+```
 
 ---
 
