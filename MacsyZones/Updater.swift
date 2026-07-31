@@ -89,7 +89,7 @@ class GitHubAPI {
     let session = URLSession.shared
 
     func checkLatestRelease(onChecked: @escaping ((version: String, url: URL)?) -> Void) {
-        let urlString = "https://api.github.com/repos/rohanrhu/MacsyZones/releases/latest"
+        let urlString = "https://api.github.com/repos/jiezhengj/MacsyZones/releases/latest"
         guard let url = URL(string: urlString) else {
             onChecked(nil)
             return
@@ -236,8 +236,8 @@ class GitHubUpdater {
                 alert.window.level = .floating
                 alert.alertStyle = .informational
                 alert.messageText = "MacsyZones"
-                alert.informativeText = "An update will now start. The app will restart automatically."
-                alert.addButton(withTitle: "OK")
+                alert.informativeText = "更新即将开始。应用将自动重启。"
+                alert.addButton(withTitle: "好的")
                 
                 alert.window.makeKeyAndOrderFront(nil)
                 NSApplication.shared.activate(ignoringOtherApps: true)
