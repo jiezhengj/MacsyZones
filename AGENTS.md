@@ -223,7 +223,9 @@ git show upstream/main:MacsyZones/<文件名>.swift | grep -A <行数> "<关键�
 
 **问题**：Xcode 项目中的 `MARKETING_VERSION` 默认是 `1.0`，如果不手动更新，每次构建出来的 app 版本号都是 `1.0`，导致更新功能陷入无限循环。
 
-**解决**：每次发布新版本前，必须更新 `MacsyZones.xcodeproj/project.pbxproj` 中的 `MARKETING_VERSION`。
+**解决**：每次发布新版本前，必须更新以下位置的版本号：
+
+1. **Xcode 项目**：`MacsyZones.xcodeproj/project.pbxproj` 中的 `MARKETING_VERSION`
 
 ```bash
 # 查看当前版本
@@ -232,6 +234,8 @@ grep "MARKETING_VERSION" MacsyZones.xcodeproj/project.pbxproj
 # 更新版本号（替换 x.y.z 为新版本）
 sed -i '' 's/MARKETING_VERSION = .*/MARKETING_VERSION = x.y.z;/g' MacsyZones.xcodeproj/project.pbxproj
 ```
+
+2. **关于界面**：版本号会自动从 Info.plist 读取，无需手动更新
 
 ---
 
