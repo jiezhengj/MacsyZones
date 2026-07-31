@@ -67,286 +67,74 @@ struct OnboardingPage: Identifiable {
 struct OnboardingView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var state = onboardingState
-    @State private var currentPage = 0
-    @State private var isAnimating = false
     let window: NSWindow?
-    
+
     init(window: NSWindow? = nil) {
         self.window = window
     }
-    
-    private let pages: [OnboardingPage] = [
-        OnboardingPage(
-            title: "欢迎使用 MacsyZones",
-            description: "**MacsyZones** 是您在 macOS 上的终极窗口管理伴侣。\n\n通过**强大的吸附区域**高效组织工作空间，使用**键盘快捷键**提升生产力，并自定义布局以匹配您的工作流程。\n\n📌 **关于本版本**\n这是 [MacsyZones](https://github.com/rohanrhu/MacsyZones) 的中文定制 fork 版本，**仅供个人学习使用，不对外分发**。\n\n如果您喜欢 MacsyZones，请访问 [macsyzones.com](https://macsyzones.com) **购买正版**并**支持开发者**，您的支持是对原创者最好的鼓励。🥳\n\n让我们开始吧！🚀",
-            icon: NSImage(named: "MenuBarIcon")
-        ),
-        OnboardingPage(
-            title: "吸附窗口",
-            description: "将窗口吸附到区域是**快速且直观**的。\n\n**1.** 拖动窗口时按住**吸附键**（默认：**Shift**）\n**2.** 您的区域将出现在屏幕上\n**3.** 将窗口移动到目标区域上方\n**4.** 释放即可将窗口吸附到位\n\n💡 **提示：**您也可以使用**右键点击吸附**（默认启用）来吸附窗口，无需按住吸附键。",
-            icon: NSImage(systemSymbolName: "rectangle.on.rectangle.angled", accessibilityDescription: nil)
-        ),
-        OnboardingPage(
-            title: "添加和设计布局",
-            description: "创建适合您需求的**自定义布局**。\n\n**1.** 点击菜单栏中的**铅笔图标**进入编辑模式\n**2.** 点击 **+ 按钮**添加区域\n**3.** 通过**拖动边缘**调整区域大小和位置\n**4.** 为不同的工作流程创建新布局\n\n📝 **注意：**MacsyZones 会记住您为每个屏幕和工作区组合选择的**首选布局**。您可以在屏幕上选择首选布局。",
-            icon: NSImage(systemSymbolName: "square.grid.3x3", accessibilityDescription: nil)
-        ),
-        OnboardingPage(
-            title: "摇晃吸附",
-            description: "一种**神奇的方式**通过运动来吸附窗口。\n\n**1.** 点击并按住窗口的**标题栏**\n**2.** **快速**摇晃鼠标或触控板\n**3.** 区域将自动出现\n**4.** 移动并释放即可吸附\n\n⚡ **提示：**在设置中调整**摇晃灵敏度**以匹配您的偏好。此功能非常适合**触控板用户**！",
-            icon: NSImage(systemSymbolName: "hand.raised.fill", accessibilityDescription: nil)
-        ),
-        OnboardingPage(
-            title: "吸附调整大小",
-            description: "使用区域边缘**精确**调整窗口大小。\n\n**1.** 将鼠标指针移动到两个区域边缘交汇处，或按住**修饰键**（默认：**Control**）片刻\n**2.** 吸附调整器将出现在区域之间\n**3.** 将窗口边缘拖动到吸附调整器附近\n**4.** 边缘将吸附到调整器以实现**完美对齐**\n\n✨ **功能：**在设置中启用**'悬停时显示吸附调整器'**，无需按住修饰键即可立即查看。",
-            icon: NSImage(systemSymbolName: "arrow.up.left.and.arrow.down.right", accessibilityDescription: nil)
-        ),
-        OnboardingPage(
-            title: "快速吸附",
-            description: "快速吸附是一个**轻量级窗口管理**工具，让您使用键盘快捷键将窗口吸附到预定义区域。\n\n**1.** 使用**快速吸附快捷键**（默认：**Control+Shift+S**）切换快速吸附模式\n**2.** 使用方向键 ↑ / ↓ 在区域间导航，← / → 在布局间导航\n**3.** 按区域编号（1-9）将选定窗口吸附到该区域\n4. 按 Delete **取消吸附**选定窗口\n5. 按 Enter 完成操作\n\n🚀 **效率：**快速吸附专为偏好**键盘中心工作流程**的用户设计，无需离开键盘即可快速管理窗口。您可以用它作为吸附器、布局切换器和快速窗口切换器。",
-            icon: NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: nil)
-        )
-    ]
-    
+
+    private let aboutPage = OnboardingPage(
+        title: "欢迎使用 MacsyZones",
+        description: "**MacsyZones** 是您在 macOS 上的终极窗口管理伴侣。\n\n通过**强大的吸附区域**高效组织工作空间，使用**键盘快捷键**提升生产力，并自定义布局以匹配您的工作流程。\n\n📌 **关于本版本**\n这是 [MacsyZones](https://github.com/rohanrhu/MacsyZones) 的中文定制 fork 版本，**仅供个人学习使用，不对外分发**。\n\n如果您喜欢 MacsyZones，请访问 [macsyzones.com](https://macsyzones.com) **购买正版**并**支持开发者**，您的支持是对原创者最好的鼓励。🥳\n\n让我们开始吧！🚀",
+        icon: NSImage(named: "MenuBarIcon")
+    )
+
     var body: some View {
         VStack(spacing: 0) {
+            // Header
             HStack(alignment: .center, spacing: 12) {
                 HStack(spacing: 8) {
                     Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 40, height: 40)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("MacsyZones 入门指南")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        Text("第 \(currentPage + 1) 步，共 \(pages.count) 步")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+
+                    Text("关于 MacsyZones")
+                        .font(.title2)
+                        .fontWeight(.bold)
                 }
-                
+
                 Spacer()
-                
-                Button(action: {
-                    completeOnboarding()
-                }) {
-                    HStack(spacing: 6) {
-                        Text("跳过")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                    }
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.gray.opacity(0.1))
-                    )
-                }
-                .buttonStyle(.plain)
-                .help("Skip onboarding")
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 10)
             .onAppear {
                 window?.center()
             }
-            
-            HStack(spacing: 8) {
-                ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
-                    Button(action: {
-                        guard !isAnimating else { return }
-                        isAnimating = true
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            currentPage = index
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            isAnimating = false
-                        }
-                    }) {
-                        HStack(spacing: 6) {
-                            Image(nsImage: page.icon ?? NSImage())
-                                .resizable()
-                                .renderingMode(.template)
-                                .frame(width: 20, height: 20)
-                                .font(.system(size: 20, weight: .medium))
-                                .symbolRenderingMode(.hierarchical)
-                                .foregroundStyle(
-                                    currentPage == index
-                                    ? LinearGradient(
-                                        colors: [Color.accentColor, Color.accentColor.opacity(0.7)],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                    : LinearGradient(
-                                        colors: [Color.secondary.opacity(0.6), Color.secondary.opacity(0.6)],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                            
-                            Text(page.title)
-                                .font(.system(size: 10, weight: currentPage == index ? .semibold : .regular))
-                                .foregroundColor(currentPage == index ? .accentColor : .secondary)
-                                .lineLimit(1)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(currentPage == index ? Color.accentColor.opacity(0.1) : Color.clear)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(
-                                    currentPage == index ? Color.accentColor.opacity(0.3) : Color.clear,
-                                    lineWidth: 1.5
-                                )
-                        )
-                        .scaleEffect(currentPage == index ? 1.0 : 0.9)
-                    }
-                    .buttonStyle(.plain)
-                    .contentShape(Rectangle())
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 10)
-            
-            OnboardingPageView(page: pages[currentPage])
-                .id(currentPage)
+
+            // Content
+            OnboardingPageView(page: aboutPage)
                 .padding(.vertical, 10)
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                    removal: .move(edge: .leading).combined(with: .opacity)
-                ))
-            
-            HStack(spacing: 12) {
-                if currentPage > 0 {
-                    Button(action: {
-                        guard !isAnimating, currentPage > 0 else { return }
-                        isAnimating = true
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            currentPage -= 1
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            isAnimating = false
-                        }
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "chevron.left.circle.fill")
-                                .font(.system(size: 16, weight: .medium))
-                                .symbolRenderingMode(.hierarchical)
-                            Text("上一步")
-                                .fontWeight(.medium)
-                        }
+
+            // Bottom button
+            HStack {
+                Spacer()
+
+                Button(action: {
+                    dismiss()
+                }) {
+                    Text("确定")
+                        .fontWeight(.semibold)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .padding(.horizontal, 20)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.gray.opacity(0.1))
+                                .fill(Color.accentColor)
                         )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                    
-                    HStack(spacing: 8) {
-                        ForEach(0..<pages.count, id: \.self) { index in
-                            Circle()
-                                .fill(currentPage == index ? Color.accentColor : Color.gray.opacity(0.3))
-                                .frame(width: 8, height: 8)
-                                .scaleEffect(currentPage == index ? 1.0 : 0.8)
-                                .animation(.easeInOut(duration: 0.2), value: currentPage)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                }
-                
-                if currentPage < pages.count - 1 {
-                    Button(action: {
-                        guard !isAnimating, currentPage < pages.count - 1 else { return }
-                        isAnimating = true
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            currentPage += 1
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            isAnimating = false
-                        }
-                    }) {
-                        HStack(spacing: 8) {
-                            Text("下一步")
-                                .fontWeight(.semibold)
-                            Image(systemName: "chevron.right.circle.fill")
-                                .font(.system(size: 16, weight: .medium))
-                                .symbolRenderingMode(.hierarchical)
-                        }
                         .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .padding(.horizontal, 20)
-                        .background(
-                            LinearGradient(
-                                colors: [Color.accentColor, Color.accentColor.opacity(0.8)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                    .buttonStyle(.plain)
-                    .shadow(color: Color.accentColor.opacity(0.3), radius: 8, x: 0, y: 4)
-                    .keyboardShortcut(.defaultAction)
-                } else {
-                    Button(action: {
-                        completeOnboarding()
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 16, weight: .medium))
-                                .symbolRenderingMode(.hierarchical)
-                            Text("开始使用")
-                                .fontWeight(.semibold)
-                            Image(systemName: "arrow.right.circle.fill")
-                                .font(.system(size: 16, weight: .medium))
-                                .symbolRenderingMode(.hierarchical)
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .padding(.horizontal, 20)
-                        .background(
-                            LinearGradient(
-                                colors: [Color.accentColor, Color.accentColor.opacity(0.8)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                    .buttonStyle(.plain)
-                    .shadow(color: Color.accentColor.opacity(0.4), radius: 12, x: 0, y: 6)
-                    .keyboardShortcut(.defaultAction)
                 }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.defaultAction)
+                .frame(width: 120)
+
+                Spacer()
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 10)
+            .padding(.vertical, 16)
         }
-        .padding(.vertical, 20)
-        .frame(minWidth: 600, minHeight: 920)
-    }
-    
-    private func completeOnboarding() {
-        state.hasCompletedOnboarding = true
-        state.save()
-        dismiss()
+        .frame(width: 480, height: 520)
+        .background(Color(NSColor.windowBackgroundColor))
     }
 }
 
