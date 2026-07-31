@@ -74,37 +74,50 @@ struct OnboardingView: View {
     }
 
     private let aboutPage = OnboardingPage(
-        title: "欢迎使用 MacsyZones",
-        description: "**MacsyZones** 是您在 macOS 上的终极窗口管理伴侣。\n\n通过**强大的吸附区域**高效组织工作空间，使用**键盘快捷键**提升生产力，并自定义布局以匹配您的工作流程。\n\n📌 **关于本版本**\n这是 [MacsyZones](https://github.com/rohanrhu/MacsyZones) 的中文定制 fork 版本，**仅供个人学习使用，不对外分发**。\n\n如果您喜欢 MacsyZones，请访问 [macsyzones.com](https://macsyzones.com) **购买正版**并**支持开发者**，您的支持是对原创者最好的鼓励。🥳\n\n让我们开始吧！🚀",
+        title: "关于",
+        description: "**MacsyZones** 是您在 macOS 上的终极窗口管理伴侣。\n\n通过**强大的吸附区域**高效组织工作空间，使用**键盘快捷键**提升生产力，并自定义布局以匹配您的工作流程。\n\n📌 **关于本版本**\n这是 [MacsyZones](https://github.com/rohanrhu/MacsyZones) 的中文定制 fork 版本，**仅供个人学习使用，不对外分发**。\n\n感谢原作者 [Oğuzhan Eroğlu](https://meowingcat.io/) 的杰出工作！🥳",
         icon: NSImage(named: "MenuBarIcon")
     )
 
     var body: some View {
-        VStack(spacing: 0) {
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+
+        VStack(spacing: 16) {
             // Header
             HStack(alignment: .center, spacing: 12) {
-                HStack(spacing: 8) {
-                    Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 40, height: 40)
+                Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 48, height: 48)
 
-                    Text("关于 MacsyZones")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("MacsyZones")
                         .font(.title2)
                         .fontWeight(.bold)
+                    Text("版本 \(appVersion)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
 
                 Spacer()
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 10)
+            .padding(.top, 16)
             .onAppear {
                 window?.center()
             }
 
+            Divider()
+
             // Content
-            OnboardingPageView(page: aboutPage)
-                .padding(.vertical, 10)
+            VStack(alignment: .leading, spacing: 12) {
+                Text(.init(aboutPage.description))
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(4)
+            }
+            .padding(.horizontal, 20)
+
+            Divider()
 
             // Bottom button
             HStack {
@@ -115,25 +128,23 @@ struct OnboardingView: View {
                 }) {
                     Text("确定")
                         .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .padding(.horizontal, 20)
+                        .frame(width: 100)
+                        .padding(.vertical, 10)
                         .background(
-                            RoundedRectangle(cornerRadius: 10)
+                            RoundedRectangle(cornerRadius: 8)
                                 .fill(Color.accentColor)
                         )
                         .foregroundColor(.white)
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.defaultAction)
-                .frame(width: 120)
 
                 Spacer()
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.bottom, 16)
         }
-        .frame(width: 480, height: 520)
+        .frame(width: 420)
         .background(Color(NSColor.windowBackgroundColor))
     }
 }
