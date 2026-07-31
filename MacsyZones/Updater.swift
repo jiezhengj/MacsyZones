@@ -138,99 +138,126 @@ class GitHubUpdater {
                 onChecked?(nil)
                 return
             }
-            
+
             onChecked?(latestRelease.version)
-            
-            self.downloadZip(from: latestRelease.url, version: latestRelease.version) { success in
+
+            self.downloadDmg(from: latestRelease.url, version: latestRelease.version) { success in
                 onDownloaded?(success)
             }
         }
     }
-    
-    private func downloadZip(from url: URL, version: String, onCompleted: ((Bool) -> Void)? = nil) {
-        let destination = URL(fileURLWithPath: "\(NSTemporaryDirectory())\(appName).zip")
-        
+
+    private func downloadDmg(from url: URL, version: String, onCompleted: ((Bool) -> Void)? = nil) {
+        let destination = URL(fileURLWithPath: "\(NSTemporaryDirectory())\(appName).dmg")
+
         downloadFile(from: url, to: destination) { [self] tmpPath in
             guard let tmpPath = tmpPath else {
                 debugLog("Error downloading update!")
                 onCompleted?(false)
                 return
             }
-            
+
             onCompleted?(true)
-            
-            self.extractZip(from: tmpPath)
+
+            self.installDmg(from: tmpPath)
         }
     }
-    
-    private func extractZip(from zipURL: URL) {
+
+    private func installDmg(from dmgURL: URL) {
         let fileManager = FileManager.default
         let destinationFolder = getApplicationsPath()
         let destinationApp = destinationFolder.appendingPathComponent("MacsyZones.app")
         let tempDirectory = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        
+        let mountPoint = tempDirectory.appendingPathComponent("mount")
+
         do {
-            try fileManager.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
-            
-            let extractProcess = Process()
-            extractProcess.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-            extractProcess.arguments = ["-xk", "--extattr", zipURL.path, tempDirectory.path]
-            try extractProcess.run()
-            extractProcess.waitUntilExit()
-            
-            let extractedAppURL = tempDirectory.appendingPathComponent("MacsyZones.app")
-            guard fileManager.fileExists(atPath: extractedAppURL.path) else {
-                debugLog("Error: Extracted app not found.")
+            try fileManager.createDirectory(at: mountPoint, withIntermediateDirectories: true)
+
+            // 挂载 dmg
+            let hdiutilAttach = Process()
+            hdiutilAttach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+            hdiutilAttach.arguments = ["attach", dmgURL.path, "-mountpoint", mountPoint.path, "-nobrowse", "-quiet"]
+            try hdiutilAttach.run()
+            hdiutilAttach.waitUntilExit()
+
+            guard hdiutilAttach.terminationStatus == 0 else {
+                debugLog("Error: Failed to mount DMG.")
                 try? fileManager.removeItem(at: tempDirectory)
                 return
             }
-            
+
+            // 查找 app
+            let extractedAppURL = mountPoint.appendingPathComponent("MacsyZones.app")
+            guard fileManager.fileExists(atPath: extractedAppURL.path) else {
+                debugLog("Error: App not found in DMG.")
+                // 卸载 dmg
+                let hdiutilDetach = Process()
+                hdiutilDetach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+                hdiutilDetach.arguments = ["detach", mountPoint.path, "-force"]
+                try? hdiutilDetach.run()
+                hdiutilDetach.waitUntilExit()
+                try? fileManager.removeItem(at: tempDirectory)
+                return
+            }
+
+            // 读取版本号
             let extractedInfoPlist = extractedAppURL.appendingPathComponent("Contents/Info.plist")
             guard let extractedPlistData = try? Data(contentsOf: extractedInfoPlist),
                   let extractedPlist = try? PropertyListSerialization.propertyList(from: extractedPlistData, options: [], format: nil) as? [String: Any],
                   let targetVersion = extractedPlist["CFBundleShortVersionString"] as? String else {
                 debugLog("Error: Could not read target version from extracted app.")
+                let hdiutilDetach = Process()
+                hdiutilDetach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+                hdiutilDetach.arguments = ["detach", mountPoint.path, "-force"]
+                try? hdiutilDetach.run()
+                hdiutilDetach.waitUntilExit()
                 try? fileManager.removeItem(at: tempDirectory)
                 return
             }
-            
+
             let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
-            
+
             updateState.setUpdateAttempt(currentVersion: currentVersion, targetVersion: targetVersion)
-            
+
             let scriptURL = tempDirectory.appendingPathComponent("update.sh")
             let script = """
             #!/bin/bash
             sleep 2
-            
-            # Remove quarantine from extracted app (prevents GateKeeper issues)
+
+            # 移除隔离属性
             xattr -r -d com.apple.quarantine "\(extractedAppURL.path)" 2>/dev/null || true
-            
-            # Remove old app
+
+            # 删除旧 app
             rm -rf "\(destinationApp.path)"
-            
-            # Use ditto to preserve extended attributes during move
+
+            # 复制新 app
             ditto "\(extractedAppURL.path)" "\(destinationApp.path)"
-            
-            # Final quarantine cleanup on installed app
+
+            # 再次移除隔离属性
             xattr -r -d com.apple.quarantine "\(destinationApp.path)" 2>/dev/null || true
-            
-            # Give filesystem time to settle
-            sleep 1
-            
-            open "\(destinationApp.path)"
+
+            # 卸载 dmg
+            hdiutil detach "\(mountPoint.path)" -force 2>/dev/null || true
+
+            # 清理临时文件
             rm -rf "\(tempDirectory.path)"
+            rm -f "\(dmgURL.path)"
+
+            # 等待文件系统稳定
+            sleep 1
+
+            open "\(destinationApp.path)"
             exit 0
             """
-            
+
             try script.write(to: scriptURL, atomically: true, encoding: .utf8)
             try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
-            
+
             let updateProcess = Process()
             updateProcess.executableURL = URL(fileURLWithPath: "/bin/bash")
             updateProcess.arguments = ["-c", "nohup \"\(scriptURL.path)\" > /dev/null 2>&1 &"]
             try updateProcess.run()
-            
+
             DispatchQueue.main.async {
                 let alert = NSAlert()
                 alert.window.level = .floating
@@ -238,20 +265,26 @@ class GitHubUpdater {
                 alert.messageText = "MacsyZones"
                 alert.informativeText = "更新即将开始。应用将自动重启。"
                 alert.addButton(withTitle: "好的")
-                
+
                 alert.window.makeKeyAndOrderFront(nil)
                 NSApplication.shared.activate(ignoringOtherApps: true)
-                
+
                 alert.runModal()
-                
+
                 restartApp()
-                
+
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     NSApp.terminate(nil)
                 }
             }
         } catch {
             debugLog("Update error: \(error.localizedDescription)")
+            // 卸载 dmg
+            let hdiutilDetach = Process()
+            hdiutilDetach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+            hdiutilDetach.arguments = ["detach", mountPoint.path, "-force"]
+            try? hdiutilDetach.run()
+            hdiutilDetach.waitUntilExit()
             try? fileManager.removeItem(at: tempDirectory)
         }
     }
