@@ -136,6 +136,13 @@ struct SettingsView: View {
                 }
                 .foregroundColor(.red)
 
+                if #available(macOS 12.0, *) {
+                    Button(action: { showOnboarding() }) {
+                        Image(systemName: "questionmark.circle")
+                        Text("帮助")
+                    }
+                }
+
                 Spacer()
 
                 HStack(spacing: 12) {
@@ -207,14 +214,15 @@ struct ScreenTabBar: View {
                             .font(.caption)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
                     .background(state.selectedScreenIndex == index ? Color.accentColor.opacity(0.1) : Color.clear)
                     .cornerRadius(8)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(state.selectedScreenIndex == index ? Color.accentColor : Color.clear, lineWidth: 2)
                     )
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -277,27 +285,32 @@ struct LayoutSettingsSection: View {
                     Image(systemName: "pencil")
                         .frame(height: buttonHeight)
                 }
+                .help("编辑布局")
 
                 Button(action: { stopEditing(); showRenameView = true }) {
                     Image(systemName: "rectangle.and.pencil.and.ellipsis")
                         .frame(height: buttonHeight)
                 }
+                .help("重命名布局")
 
                 Button(action: { stopEditing(); showDuplicateView = true }) {
                     Image(systemName: "plus.rectangle.on.rectangle")
                         .frame(height: buttonHeight)
                 }
+                .help("复制布局")
 
                 Button(action: { stopEditing(); showNewView = true }) {
                     Image(systemName: "plus")
                         .frame(height: buttonHeight)
                 }
+                .help("新建布局")
 
                 Button(action: { layouts.removeCurrentLayout() }) {
                     Image(systemName: "trash")
                         .frame(height: buttonHeight)
                 }
                 .disabled(layouts.layouts.count < 2)
+                .help("删除布局")
             }
             .frame(maxWidth: .infinity)
 
@@ -318,6 +331,181 @@ struct LayoutSettingsSection: View {
             Alert(
                 title: Text("布局"),
                 message: Text("您可以为每个屏幕和工作区选择不同的布局。\n\nMacsyZones 会记住您为每个屏幕/工作区选择的布局。"),
+                dismissButton: .default(Text("好的"))
+            )
+        }
+        .sheet(isPresented: $showRenameView) {
+            RenameView(isPresented: $showRenameView, layouts: layouts)
+        }
+        .sheet(isPresented: $showDuplicateView) {
+            DuplicateView(isPresented: $showDuplicateView, layouts: layouts)
+        }
+        .sheet(isPresented: $showNewView) {
+            NewView(isPresented: $showNewView, layouts: layouts)
+        }
+    }
+}
+
+// MARK: - Rename View (from upstream)
+struct RenameView: View {
+    @Binding var isPresented: Bool
+    @ObservedObject var layouts: UserLayouts
+    @State private var layoutName: String = ""
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("重命名布局")
+                .font(.headline)
+
+            TextField("输入布局名称", text: $layoutName)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .frame(width: 250)
+
+            HStack(spacing: 12) {
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark").foregroundColor(.red)
+                    Text("取消")
+                }
+
+                Button(action: {
+                    if layoutName.trimmingCharacters(in: .whitespaces).isEmpty { return }
+                    layouts.renameCurrentLayout(to: layoutName)
+                    isPresented = false
+                }) {
+                    Image(systemName: "checkmark").foregroundColor(.green)
+                    Text("重命名")
+                }
+                .disabled(layoutName.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20)
+        .onAppear {
+            layoutName = layouts.currentLayoutName
+        }
+    }
+}
+
+// MARK: - Duplicate View (from upstream)
+struct DuplicateView: View {
+    @Binding var isPresented: Bool
+    @ObservedObject var layouts: UserLayouts
+    @State private var layoutName: String
+    @State private var showAlreadyExistsAlert: Bool = false
+
+    init(isPresented: Binding<Bool>, layouts: UserLayouts) {
+        self._isPresented = isPresented
+        self.layouts = layouts
+        self._layoutName = State(initialValue: layouts.currentLayoutName + " 副本")
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("复制布局")
+                .font(.headline)
+
+            TextField("输入布局名称", text: $layoutName)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .frame(width: 250)
+
+            HStack(spacing: 12) {
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark").foregroundColor(.red)
+                    Text("取消")
+                }
+
+                Button(action: {
+                    if layoutName.trimmingCharacters(in: .whitespaces).isEmpty { return }
+                    if layouts.layouts.keys.contains(layoutName) {
+                        showAlreadyExistsAlert = true
+                        return
+                    }
+                    layouts.duplicateCurrentLayout(newName: layoutName)
+                    isPresented = false
+                }) {
+                    Image(systemName: "checkmark").foregroundColor(.green)
+                    Text("复制")
+                }
+                .disabled(layoutName.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20)
+        .alert(isPresented: $showAlreadyExistsAlert) {
+            Alert(
+                title: Text("提示"),
+                message: Text("已存在同名布局，请选择其他名称。"),
+                dismissButton: .default(Text("好的"))
+            )
+        }
+    }
+}
+
+// MARK: - New View (from upstream)
+struct NewView: View {
+    @Binding var isPresented: Bool
+    @ObservedObject var layouts: UserLayouts
+    @State private var layoutName: String = "我的布局"
+    @State private var layoutType: LayoutType = .zone
+    @State private var gridRows: Int = 3
+    @State private var gridColumns: Int = 3
+    @State private var showAlreadyExistsAlert: Bool = false
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("新建布局")
+                .font(.headline)
+
+            TextField("输入布局名称", text: $layoutName)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .frame(width: 250)
+
+            Picker("布局类型", selection: $layoutType) {
+                Text("区域").tag(LayoutType.zone)
+                Text("网格").tag(LayoutType.grid)
+            }
+            .pickerStyle(SegmentedPickerStyle())
+            .frame(width: 250)
+
+            if layoutType == .grid {
+                VStack(spacing: 6) {
+                    Stepper("行数: \(gridRows)", value: $gridRows, in: 1...24)
+                    Stepper("列数: \(gridColumns)", value: $gridColumns, in: 1...24)
+                }
+                .padding(8)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(8)
+            }
+
+            HStack(spacing: 12) {
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark").foregroundColor(.red)
+                    Text("取消")
+                }
+
+                Button(action: {
+                    if layoutName.trimmingCharacters(in: .whitespaces).isEmpty { return }
+                    if layouts.layouts.keys.contains(layoutName) {
+                        showAlreadyExistsAlert = true
+                        return
+                    }
+                    switch layoutType {
+                    case .zone:
+                        layouts.createLayout(name: layoutName)
+                    case .grid:
+                        layouts.createGridLayout(name: layoutName, rows: gridRows, columns: gridColumns)
+                    }
+                    isPresented = false
+                }) {
+                    Image(systemName: "checkmark").foregroundColor(.green)
+                    Text("创建")
+                }
+                .disabled(layoutName.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20)
+        .alert(isPresented: $showAlreadyExistsAlert) {
+            Alert(
+                title: Text("提示"),
+                message: Text("已存在同名布局，请选择其他名称。"),
                 dismissButton: .default(Text("好的"))
             )
         }
