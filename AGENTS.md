@@ -245,21 +245,71 @@ git show upstream/main:MacsyZones/<文件名>.swift | grep -A <行数> "<关键�
 - ✅ 推荐：感谢原作者的杰出工作
 - ❌ 避免：购买正版、支持开发者（显得像在做盗版）
 
-### 创建 Release 的 CLI 命令
+### 创建 Release 的完整流程
 
+**每次发布 Release 必须执行以下全部步骤**，不可跳过：
+
+**步骤 1：更新版本号**
 ```bash
-# 1. 先推送 tag
+sed -i '' 's/MARKETING_VERSION = .*/MARKETING_VERSION = x.y.z;/g' MacsyZones.xcodeproj/project.pbxproj
+```
+
+**步骤 2：构建 Release 版本**
+```bash
+xcodebuild -project MacsyZones.xcodeproj -scheme MacsyZones -configuration Release -derivedDataPath build clean build
+```
+
+**步骤 3：验证签名**
+```bash
+codesign -dv --verbose=4 build/Build/Products/Release/MacsyZones.app 2>&1 | grep -E "CDHash|Signature|Identifier|Authority"
+```
+必须确认：
+- `Signature=Apple Development`
+- `Identifier=MeowingCat.MacsyZones`
+- `Authority=Apple Development: jie.zhengj@gmail.com (8SDSF987N2)`
+
+**步骤 4：创建 DMG**
+```bash
+mkdir -p /tmp/MacsyZones-dmg
+cp -R build/Build/Products/Release/MacsyZones.app /tmp/MacsyZones-dmg/
+ln -sf /Applications /tmp/MacsyZones-dmg/Applications
+hdiutil create -volname "MacsyZones" -srcfolder /tmp/MacsyZones-dmg -ov -format UDZO MacsyZones-vx.y.z.dmg
+rm -rf /tmp/MacsyZones-dmg
+```
+- DMG 文件名格式：`MacsyZones-vx.y.z.dmg`（如 `MacsyZones-v1.2.3.dmg`）
+
+**步骤 5：提交代码并推送**
+```bash
+git add MacsyZones/SettingsView.swift MacsyZones.xcodeproj/project.pbxproj MacsyZones-vx.y.z.dmg
+git commit -m "<提交信息>"
+git push origin custom
+```
+
+**步骤 6：创建 tag 并推送**
+```bash
 git tag -a vx.y.z -m "vx.y.z: <简要描述>"
 git push origin vx.y.z
+```
 
-# 2. 创建 release（注意 --title 格式）
+**步骤 7：创建 GitHub Release 并上传 DMG**
+```bash
+# 创建 release
 gh release create vx.y.z \
   --repo jiezhengj/MacsyZones \
   --title "MacsyZones 中文定制版 vx.y.z" \
   --notes "## vx.y.z 更新内容
 ...
 "
+
+# 上传 DMG
+gh release upload vx.y.z MacsyZones-vx.y.z.dmg --repo jiezhengj/MacsyZones --clobber
 ```
+
+### DMG 文件必须纳入 Git 版本管理
+
+- DMG 文件**必须** `git add` 并提交到仓库
+- 旧版本 DMG **必须** `git rm` 删除
+- 每次发布后，仓库中包含且仅包含当前版本的 DMG 文件
 
 ---
 
