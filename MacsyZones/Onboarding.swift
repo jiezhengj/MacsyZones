@@ -100,7 +100,7 @@ struct OnboardingView: View {
     private let pages: [OnboardingPage] = [
         OnboardingPage(
             title: "欢迎使用 MacsyZones",
-            description: "**MacsyZones** 是您在 macOS 上的终极窗口管理伴侣。\n\n通过**强大的吸附区域**高效组织工作空间，使用**键盘快捷键**提升生产力，并自定义布局以匹配您的工作流程。\n\nMacsyZones 拥有独特的功能，让生活更美好。我一直在努力让它变得更好。您可以**购买 MacsyZones** 来支持我，也可以**捐赠**任意金额。\n\n访问 [macsyzones.com](https://macsyzones.com) 购买并了解如何支持我。🥳\n\n让我们开始吧！🚀",
+            description: "**MacsyZones** 是您在 macOS 上的终极窗口管理伴侣。\n\n通过**强大的吸附区域**高效组织工作空间，使用**键盘快捷键**提升生产力，并自定义布局以匹配您的工作流程。\n\n📌 **关于本版本**\n这是 [MacsyZones](https://github.com/rohanrhu/MacsyZones) 的中文定制 fork 版本，**仅供个人学习使用，不对外分发**。\n\n如果您喜欢 MacsyZones，请访问 [macsyzones.com](https://macsyzones.com) **购买正版**并**支持开发者**，您的支持是对原创者最好的鼓励。🥳\n\n让我们开始吧！🚀",
             video: "MacsyZones Onboarding Welcome",
             icon: NSImage(named: "MenuBarIcon")
         ),
