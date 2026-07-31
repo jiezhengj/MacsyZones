@@ -1109,53 +1109,6 @@ struct GridEditorView: View {
     }
 }
 
-struct TrayPopupView: View {
-    @ObservedObject var ready = macsyReady
-
-    @State private var page = "main"
-    @ObservedObject var layouts = userLayouts
-
-    func generateUniqueDuplicateName() -> String {
-        let baseName = layouts.currentLayoutName
-        var copyName = baseName + " Copy"
-        var counter = 2
-
-        while layouts.layouts.keys.contains(copyName) {
-            copyName = baseName + " Copy \(counter)"
-            counter += 1
-        }
-
-        return copyName
-    }
-
-    var body: some View {
-        if !ready.isReady {
-            VStack {
-                VStack(alignment: .center) {
-                    Text("MacsyZones is loading...").padding(.bottom, 10).padding(.top, 25)
-                    ProgressView().padding(.bottom, 25)
-                }.frame(width: 240)
-            }
-        } else {
-            VStack {
-                switch page {
-                case "new":
-                    NewView(page: $page)
-                case "rename":
-                    RenameView(page: $page, layoutName: layouts.currentLayoutName)
-                case "duplicate":
-                    DuplicateView(page: $page, layoutName: generateUniqueDuplicateName())
-                case "editGrid":
-                    GridEditorView(page: $page)
-                default:
-                    Main(page: $page)
-                }
-            }
-            .padding()
-        }
-    }
-}
-
 extension NSColor {
     func saturate(by factor: CGFloat) -> NSColor {
         guard let rgb = self.usingColorSpace(.deviceRGB) else { return self }
@@ -1170,8 +1123,4 @@ extension NSColor {
         rgb.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
         return NSColor(hue: h, saturation: s, brightness: min(b * factor, 1.0), alpha: a)
     }
-}
-
-#Preview {
-    TrayPopupView(layouts: UserLayouts())
 }

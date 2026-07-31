@@ -40,7 +40,6 @@ let cycleBackwardHotkey = GlobalHotkey() {
 
 var hasAccessibilityPermission = false
 var statusItem: NSStatusItem!
-var popover: NSPopover!
 var accessibilityDialog: AccessibilityDialog?
 var updateFailedDialog: UpdateFailedDialog?
 
@@ -183,21 +182,20 @@ struct MacsyZonesApp: App {
     }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, Sendable {
+final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
     func applicationDidFinishLaunching(_ notification: Notification) {
         if isPreview {
             debugLog("Running in preview mode, skipping setup.")
-            
+
             macsyReady.isReady = true
-            
+
             return
         }
-        
+
         NSApp.setActivationPolicy(.prohibited)
-        
+
         checkIfRunning()
         createTrayIcon()
-        setupPopover()
         userLayouts.load()
         checkAccessibilityPermission()
         requestAccessibilityPermissions()
@@ -383,7 +381,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, Sen
     
     func createTrayIcon() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        
+
         if let button = statusItem?.button {
             if let image = NSImage(named: "MenuBarIcon") {
                 image.size = NSSize(width: 18, height: 18)
@@ -393,56 +391,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, Sen
                 button.image = NSImage(systemSymbolName: "uiwindow.split.2x1", accessibilityDescription: "MacsyZones")
                 button.image?.isTemplate = true
             }
-            
-            button.action = #selector(togglePopover)
+
+            // Left click action
+            button.action = #selector(toggleSettings)
             button.target = self
+
+            // Right click menu
+            let menu = NSMenu()
+            menu.addItem(NSMenuItem(title: "打开主界面", action: #selector(showSettings), keyEquivalent: ""))
+            menu.addItem(NSMenuItem.separator())
+            menu.addItem(NSMenuItem(title: "退出", action: #selector(quitApp), keyEquivalent: "q"))
+            statusItem?.menu = menu
         }
     }
-    
-    func setupPopover() {
-        popover = NSPopover()
-        popover.behavior = .transient
-        popover.animates = true
-        popover.delegate = self
-        popover.contentViewController = NSHostingController(rootView: TrayPopupView(layouts: userLayouts))
+
+    @objc func showSettings() {
+        SettingsWindowManager.shared.showWindow()
     }
-    
+
+    @objc func toggleSettings(sender: AnyObject?) {
+        SettingsWindowManager.shared.toggleWindow()
+    }
+
     @objc func quitApp() {
         NSApp.terminate(nil)
-    }
-    
-    @objc func togglePopover(sender: AnyObject?) {
-        if let button = statusItem?.button {
-            if popover.isShown {
-                closePopover(sender: sender)
-            } else {
-                showPopover(sender: button)
-            }
-        }
-    }
-    
-    func showPopover(sender: NSStatusBarButton) {
-        if #available(macOS 12.0, *) {
-            quickSnapper.close()
-        }
-        popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
-    }
-    
-    func closePopover(sender: AnyObject?) {
-        PopoverState.shared.shouldStopListening = true
-        popover.performClose(sender)
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            PopoverState.shared.shouldStopListening = false
-        }
-    }
-    
-    func popoverWillClose(_ notification: Notification) {
-        PopoverState.shared.shouldStopListening = true
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            PopoverState.shared.shouldStopListening = false
-        }
     }
     
     func checkAccessibilityPermission() {
