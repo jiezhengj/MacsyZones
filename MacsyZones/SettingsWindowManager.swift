@@ -40,8 +40,17 @@ class SettingsWindowManager {
             centerWindowOnScreen(screen)
         }
 
+        // 确保窗口在最前面
+        window?.level = .floating
         window?.makeKeyAndOrderFront(nil)
+
+        // 激活应用，确保窗口可见
         NSApp.activate(ignoringOtherApps: true)
+
+        // 延迟后恢复正常窗口层级
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.window?.level = .normal
+        }
     }
 
     // MARK: - Hide Window
