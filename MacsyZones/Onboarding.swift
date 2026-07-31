@@ -146,10 +146,10 @@ struct OnboardingView: View {
                         .frame(width: 40, height: 40)
                     
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Getting started to MacsyZones")
+                        Text("MacsyZones 入门指南")
                             .font(.title2)
                             .fontWeight(.bold)
-                        Text("Step \(currentPage + 1) of \(pages.count)")
+                        Text("第 \(currentPage + 1) 步，共 \(pages.count) 步")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -161,7 +161,7 @@ struct OnboardingView: View {
                     completeOnboarding()
                 }) {
                     HStack(spacing: 6) {
-                        Text("Skip")
+                        Text("跳过")
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
@@ -268,7 +268,7 @@ struct OnboardingView: View {
                             Image(systemName: "chevron.left.circle.fill")
                                 .font(.system(size: 16, weight: .medium))
                                 .symbolRenderingMode(.hierarchical)
-                            Text("Previous")
+                            Text("上一步")
                                 .fontWeight(.medium)
                         }
                         .frame(maxWidth: .infinity)
@@ -310,7 +310,7 @@ struct OnboardingView: View {
                         }
                     }) {
                         HStack(spacing: 8) {
-                            Text("Next")
+                            Text("下一步")
                                 .fontWeight(.semibold)
                             Image(systemName: "chevron.right.circle.fill")
                                 .font(.system(size: 16, weight: .medium))
@@ -340,7 +340,7 @@ struct OnboardingView: View {
                             Image(systemName: "sparkles")
                                 .font(.system(size: 16, weight: .medium))
                                 .symbolRenderingMode(.hierarchical)
-                            Text("Get Started")
+                            Text("开始使用")
                                 .fontWeight(.semibold)
                             Image(systemName: "arrow.right.circle.fill")
                                 .font(.system(size: 16, weight: .medium))
@@ -489,7 +489,7 @@ struct OnboardingPageView: View {
                                 .foregroundStyle(Color.accentColor.opacity(0.6))
                                 .symbolRenderingMode(.hierarchical)
                                 .padding(.bottom, 20)
-                            Text("Let's learn how to use MacsyZones")
+                            Text("让我们学习如何使用 MacsyZones")
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundStyle(Color.accentColor.opacity(0.6))
@@ -560,7 +560,7 @@ private var onboardingWindow: NSWindow?
 @available(macOS 12.0, *)
 func showOnboarding() {
     let window = NSWindow()
-    window.title = "Welcome to MacsyZones"
+    window.title = "欢迎使用 MacsyZones"
     window.styleMask = [.titled, .closable, .fullSizeContentView]
     window.titlebarAppearsTransparent = true
     window.titleVisibility = .hidden

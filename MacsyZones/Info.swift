@@ -27,13 +27,13 @@ struct AccessibilityPermissionView: View {
                     .frame(width: 75, height: 75)
                 
                 VStack(alignment: .center, spacing: 2) {
-                    Text("Accessibility Permissions Required")
+                    Text("需要辅助功能权限")
                         .lineSpacing(6)
                         .font(.title)
-                    
+
                     Spacer().frame(height: 26)
-                    
-                    Text("MacsyZones needs accessibility permissions to work. Please follow these steps:")
+
+                    Text("MacsyZones 需要辅助功能权限才能工作。请按照以下步骤操作:")
                         .font(.system(size: 13))
                         .lineSpacing(5)
                         .multilineTextAlignment(.center)
@@ -45,14 +45,14 @@ struct AccessibilityPermissionView: View {
                             Text("1.")
                                 .fontWeight(.bold)
                                 .foregroundColor(.blue)
-                            Text("Open System Settings")
+                            Text("打开系统设置")
                         }
-                        
+
                         HStack {
                             Text("2.")
                                 .fontWeight(.bold)
                                 .foregroundColor(.blue)
-                            Text("Go to Privacy & Security → Accessibility")
+                            Text("前往隐私与安全性 → 辅助功能")
                         }
                         
                         Button(action: {
@@ -75,7 +75,7 @@ struct AccessibilityPermissionView: View {
                             Text("3.")
                                 .fontWeight(.bold)
                                 .foregroundColor(.blue)
-                            Text("Enable MacsyZones")
+                            Text("启用 MacsyZones")
                         }
                         
                         Button(action: {
@@ -105,18 +105,18 @@ struct AccessibilityPermissionView: View {
                         Button(action: {
                             onCancel?()
                         }) {
-                            Text("Cancel")
+                            Text("取消")
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
                                 .background(Color.gray.opacity(0.2))
                                 .cornerRadius(8)
                         }
                         .buttonStyle(.plain)
-                        
+
                         Button(action: {
                             onRestart?()
                         }) {
-                            Text("Restart App")
+                            Text("重启应用")
                                 .fontWeight(.bold)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
@@ -126,10 +126,10 @@ struct AccessibilityPermissionView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    
+
                     Spacer().frame(height: 26)
-                    
-                    Text("After enabling accessibility permissions, restart MacsyZones to continue.")
+
+                    Text("启用辅助功能权限后，请重启 MacsyZones 以继续。")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -266,14 +266,14 @@ struct UpdateFailedView: View {
                 .frame(width: 75, height: 75)
             
             VStack(alignment: .center, spacing: 2) {
-                Text("Update Failed")
+                Text("更新失败")
                     .lineSpacing(6)
                     .font(.title)
                     .foregroundColor(.orange)
-                
+
                 Spacer().frame(height: 26)
-                
-                Text("Auto-update was unsuccessful.")
+
+                Text("自动更新未成功。")
                     .font(.system(size: 13))
                     .lineSpacing(5)
                     .multilineTextAlignment(.center)
@@ -284,14 +284,14 @@ struct UpdateFailedView: View {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.orange)
-                        Text("Please download and install the latest version manually.")
+                        Text("请手动下载并安装最新版本。")
                             .font(.system(size: 12))
                     }
-                    
+
                     HStack {
                         Image(systemName: "arrow.down.circle.fill")
                             .foregroundColor(.blue)
-                        Text("Visit our website to get the latest version.")
+                        Text("访问我们的网站获取最新版本。")
                             .font(.system(size: 12))
                     }
                 }
@@ -309,7 +309,7 @@ struct UpdateFailedView: View {
                     }) {
                         HStack {
                             Image(systemName: "safari")
-                            Text("Download Latest Version")
+                            Text("下载最新版本")
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -318,11 +318,11 @@ struct UpdateFailedView: View {
                         .cornerRadius(8)
                     }
                     .buttonStyle(.plain)
-                    
+
                     Button(action: {
                         onDismiss?()
                     }) {
-                        Text("Continue with Current Version")
+                        Text("继续使用当前版本")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
                             .background(Color.gray.opacity(0.2))
@@ -330,10 +330,10 @@ struct UpdateFailedView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                
+
                 Spacer().frame(height: 20)
-                
-                Text("You can continue using the current version of MacsyZones.")
+
+                Text("您可以继续使用当前版本的 MacsyZones。")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
