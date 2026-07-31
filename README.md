@@ -28,6 +28,16 @@
 
 从 [Releases](https://github.com/jiezhengj/MacsyZones/releases) 下载最新版本。
 
+### 首次运行
+
+由于应用未经 Apple 官方签名，首次运行需要移除隔离属性：
+
+```bash
+xattr -cr /Applications/MacsyZones.app
+```
+
+或者在 **系统设置 → 隐私与安全性** 中点击"仍要打开"。
+
 ## 从源码构建
 
 ```bash
