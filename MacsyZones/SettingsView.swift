@@ -207,8 +207,8 @@ struct ScreenTabBar: View {
                             .font(.caption)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 12)
+                    .padding(.vertical, 14)
+                    .padding(.horizontal, 20)
                     .background(state.selectedScreenIndex == index ? Color.accentColor.opacity(0.1) : Color.clear)
                     .cornerRadius(8)
                     .overlay(
