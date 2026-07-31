@@ -779,9 +779,7 @@ struct EditorBarView: View {
     var onSmartPadding: () -> Void
     var onSave: () -> Void
     var onCancel: () -> Void
-    
-    @State var showNotProDialog = false
-    
+
     var isSmartGapEnabled: Bool {
         _ = layoutWindow.zoneLayoutVersion
         return layoutWindow.hasAnyAdjacentZones()
@@ -881,13 +879,6 @@ struct EditorBarView: View {
         .padding(.horizontal, 15)
         .fixedSize(horizontal: false, vertical: true)
         .background(BlurredWindowBackground(material: .hudWindow, blendingMode: .behindWindow).cornerRadius(26).padding(.horizontal, 7))
-        .alert(isPresented: $showNotProDialog) {
-            Alert(
-                title: Text("提示"),
-                message: Text("此功能需要购买 MacsyZones Pro 才能解锁。"),
-                dismissButton: .default(Text("好的"))
-            )
-        }
     }
 }
 
