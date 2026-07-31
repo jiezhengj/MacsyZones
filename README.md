@@ -1,80 +1,122 @@
 # MacsyZones
 
-[![GitHub release](https://img.shields.io/github/release/rohanrhu/MacsyZones.svg?style=flat-square&color=informational)](https://github.com/rohanrhu/MacsyZones/releases)
-[![GitHub stars](https://img.shields.io/github/stars/rohanrhu/MacsyZones?style=flat-square)](https://github.com/rohanrhu/MacsyZones/stargazers)
-[![Support me on Patreon](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3DEvrenselKisilik%26type%3Dpatrons&style=flat-square)](https://patreon.com/EvrenselKisilik)
-[![MacsyZones Discord](https://img.shields.io/discord/1293725442238447737.svg?color=7289da&label=Discord&logo=discord&style=flat-square)](https://discord.gg/C4axTA6rpn)
+[![GitHub release](https://img.shields.io/github/release/jiezhengj/MacsyZones.svg?style=flat-square&color=informational)](https://github.com/jiezhengj/MacsyZones/releases)
+[![GitHub stars](https://img.shields.io/github/stars/jiezhengj/MacsyZones?style=flat-square)](https://github.com/jiezhengj/MacsyZones/stargazers)
 
-Make your workflow more efficient with MacsyZones. Organize your windows with ease.
+**MacsyZones** 是一款 macOS 窗口管理工具，让您的工作流程更加高效，轻松组织和管理窗口布局。
 
-Visit [https://macsyzones.com](https://macsyzones.com) to download MacsyZones.
+> 🙏 **致谢**：本项目基于 [rohanrhu/MacsyZones](https://github.com/rohanrhu/MacsyZones) 进行二次开发，感谢原作者 [Oğuzhan Eroğlu](https://meowingcat.io/) 的杰出工作！
 
-| ![MacsyZones](media/MacsyZonesAppIcon.png) | MacsyZones is a FancyZones equivalent for macOS. MacsyZones allows you to create layouts and sections in your layouts as you want and fit your windows into sections with ease. |
+| ![MacsyZones](media/MacsyZonesAppIcon.png) | MacsyZones 是 macOS 上的 FancyZones 替代品。您可以自由创建布局和区域，并轻松将窗口适配到各个区域中。 |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 
-<img width="1728" height="1760" alt="MacsyZones Settings" src="https://github.com/user-attachments/assets/54385d2e-7d97-4d85-8aab-a9681cea8b70" />
+<img width="1728" height="1760" alt="MacsyZones 设置界面" src="https://github.com/user-attachments/assets/54385d2e-7d97-4d85-8aab-a9681cea8b70" />
 
-## MacsyZones in action
+## 功能演示
 
 https://github.com/user-attachments/assets/f197dfa9-ef54-4a7d-b6af-630a0f0d2cac
 
 https://github.com/user-attachments/assets/101d3296-889f-4cfb-93cf-87bad548a108
 
-### Install with Homebrew
+## ✨ 主要功能
 
-You can install MacsyZones via [Homebrew](https://brew.sh):
+- 🪟 **窗口布局管理** - 创建自定义窗口布局，自由定义区域
+- ⌨️ **快捷键支持** - 使用快捷键快速吸附窗口到指定区域
+- 🖱️ **鼠标操作** - 拖拽窗口时自动显示可吸附区域
+- 🔄 **窗口循环** - 在同一区域内快速切换多个窗口
+- 📐 **吸附调整** - 精确调整窗口大小以匹配区域
+- 🖥️ **多显示器支持** - 为每个屏幕和工作区设置不同布局
+- 🎨 **网格布局** - 支持网格类型的快速布局
+
+## 📦 安装方式
+
+### 从 GitHub Releases 下载
+
+前往 [Releases](https://github.com/jiezhengj/MacsyZones/releases) 页面下载最新版本。
+
+### 使用 Homebrew（需自行添加 tap）
 
 ```sh
-brew install --cask macsyzones
+# 如果你将项目发布为 Homebrew tap
+brew install --cask jiezhengj/tap/macsyzones
 ```
 
-## Buy to support me
+## 🛠️ 从源码构建
 
-You can buy MacsyZones Pro (the same MacsyZones just "Pro") to support me.
+### 环境要求
 
-Visit [MacsyZones website](https://macsyzones.com) to buy.
+- macOS 11.5 或更高版本
+- Xcode 13 或更高版本
 
-## Buy QuakeNotch to support me
+### 构建步骤
 
-You can try my other app QuakeNotch too. It is a Agentic AI Quake Terminal app and more.
+1. 克隆仓库
+   ```bash
+   git clone https://github.com/jiezhengj/MacsyZones.git
+   cd MacsyZones
+   ```
 
-Visit [QuakeNotch website](https://quakenotch.com) to buy.
+2. 用 Xcode 打开项目
+   ```bash
+   open MacsyZones.xcodeproj
+   ```
 
-## Donations ❤️
+3. 构建运行
+   - 按 `Cmd + R` 运行
+   - 或 `Product → Archive` 打包
 
-You love [MacsyZones](https://macsyzones.com)? You can support the development by making a donation. You have the following options to donate:
+## ⚙️ 使用说明
 
-- [Patreon](https://www.patreon.com/evrenselkisilik)
-- [GitHub Sponsors](https://github.com/sponsors/rohanrhu)
+### 基本操作
 
-### Cryptocurrency Donations
+1. **启动应用** - 运行后会在菜单栏显示图标
+2. **创建布局** - 点击菜单栏图标，选择"新建布局"
+3. **设计区域** - 在布局编辑器中拖拽创建窗口区域
+4. **吸附窗口** - 按住修饰键（默认 Control）拖拽窗口到区域
 
-| Currency          | Address                                                                                         |
-| ----------------- | ----------------------------------------------------------------------------------------------- |
-| BTC               | 1A3NkkFEMFc2wq74GGRXdzrsEn42Ts1ajm                                                              |
-| ETH / USDT / USDC | 0xDDD5e5029F4d1CA54461abCF558Cb6dcAD6Df3CB                                                      |
-| XMR               | 88qvS4sfUnLZ7nehFrz3PG1pWovvEgprcUhkmVLaiL8PVAFgfHjspjKPLhWLj3DUcm92rwNQENbJ1ZbvESdukWvh3epBUty |
+### 快捷键
 
-Preferably, donating USDT or USDC is recommended but you can donate any of the above currencies. 🥳
+| 功能 | 默认快捷键 |
+|------|-----------|
+| 显示布局 | 按住 Control 键 |
+| 吸附键 | 按住 Shift 键 |
+| 快速吸附 | Control + Shift + S |
+| 向前循环窗口 | Command + ] |
+| 向后循环窗口 | Command + [ |
 
-## Discord
+## 📋 与原版的区别
 
-You can join [MacsyZones Discord server](https://discord.gg/C4axTA6rpn).
+本版本在原版基础上进行了以下修改：
 
-## Contributing
+- ✅ 移除了 Pro 许可证验证系统
+- ✅ 移除了捐赠提醒弹窗
+- ✅ 移除了购买相关界面
+- ✅ 移除了 Layout Switcher 功能
+- ✅ 界面完全中文化
+- ✅ 更新检查指向本项目仓库
 
-We welcome contributions to MacsyZones. Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for more information.
+## 🤝 贡献
 
-## Code of Conduct
+欢迎提交 Issue 和 Pull Request！
 
-We have adopted a Code of Conduct that we expect project participants to adhere to. Please read [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) so that you can understand what actions will and will not be tolerated.
+## 📄 许可证
 
-## License
+本项目基于 [GNU General Public License v3.0](LICENSE) 许可证发布。
 
-Copyright (C) 2024, Oğuzhan Eroğlu <rohanrhu2@gmail.com> ([https://meowingcat.io/](https://meowingcat.io/))
+### 原始项目许可
 
-GNU General Public License v3 (GPL-3)
+原始项目 MacsyZones 由 [Oğuzhan Eroğlu](https://meowingcat.io/) 开发，同样采用 GPL-3.0 许可证。
 
-You may copy, distribute and modify the software as long as you track changes/dates in source files. Any modifications to or software including (via compiler) GPL-licensed code must also be made available under the GPL along with build & install instructions.
+Copyright (C) 2024, Oğuzhan Eroğlu <rohanrhu2@gmail.com>
 
-See [LICENSE](LICENSE) for more information.
+## 🙏 致谢
+
+- **[rohanrhu/MacsyZones](https://github.com/rohanrhu/MacsyZones)** - 原始项目，感谢原作者的无私分享
+- **[Oğuzhan Eroğlu](https://meowingcat.io/)** - MacsyZones 的创造者
+- 所有为原项目做出贡献的开发者们
+
+## 🔗 相关链接
+
+- 原项目：https://github.com/rohanrhu/MacsyZones
+- 原项目官网：https://macsyzones.com
+- 本项目：https://github.com/jiezhengj/MacsyZones
