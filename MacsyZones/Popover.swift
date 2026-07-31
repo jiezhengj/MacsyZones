@@ -284,7 +284,7 @@ struct Main: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Group {
                         HStack(spacing: 5) {
-                            Text("Layouts").font(.subheadline)
+                            Text("布局").font(.subheadline)
                             Button(action: {
                                 resetDialogs()
                                 showDialog = true
@@ -365,7 +365,7 @@ struct Main: View {
                                 Image(systemName: "grid")
                                     .font(.system(size: 11))
                                     .foregroundColor(.secondary)
-                                Text("Grid: \(gridConfig.rows) x \(gridConfig.columns)")
+                                Text("网格: \(gridConfig.rows) x \(gridConfig.columns)")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -377,7 +377,7 @@ struct Main: View {
                     
                     Group {
                         HStack(spacing: 5) {
-                            Text("Snap Key").font(.subheadline)
+                            Text("吸附键").font(.subheadline)
                             Button(action: {
                                 resetDialogs()
                                 showDialog = true
@@ -390,8 +390,8 @@ struct Main: View {
                             .buttonStyle(BorderlessButtonStyle())
                         }
                         
-                        Picker("Snap Key", selection: $settings.snapKey) {
-                            Text("None").tag("None")
+                        Picker("吸附键", selection: $settings.snapKey) {
+                            Text("无").tag("None")
                             Text("Shift").tag("Shift")
                             Text("Command").tag("Command")
                             Text("Option").tag("Option")
@@ -402,7 +402,7 @@ struct Main: View {
                         .pickerStyle(MenuPickerStyle())
                         .onChange(of: settings.snapKey) { _ in appSettings.save() }
                         
-                        Toggle("Snap with right click", isOn: $settings.snapWithRightClick)
+                        Toggle("右键点击吸附", isOn: $settings.snapWithRightClick)
                             .toggleStyle(.checkbox)
                             .onChange(of: settings.snapWithRightClick) { _ in appSettings.save() }
                             .padding(.top, 4)
@@ -412,7 +412,7 @@ struct Main: View {
                     
                     Group {
                         HStack(spacing: 5) {
-                            Text("Modifier Key").font(.subheadline)
+                            Text("修饰键").font(.subheadline)
                             Button(action: {
                                 resetDialogs()
                                 showDialog = true
@@ -425,8 +425,8 @@ struct Main: View {
                             .buttonStyle(BorderlessButtonStyle())
                         }
                         
-                        Picker("Modifier Key", selection: $settings.modifierKey) {
-                            Text("None").tag("None")
+                        Picker("修饰键", selection: $settings.modifierKey) {
+                            Text("无").tag("None")
                             Text("Command").tag("Command")
                             Text("Option").tag("Option")
                             Text("Control").tag("Control")
@@ -436,7 +436,7 @@ struct Main: View {
                         .pickerStyle(MenuPickerStyle())
                         .onChange(of: settings.modifierKey) { _ in appSettings.save() }
                         
-                        Text("Delay: \(String(format: "%.2f", Double(settings.modifierKeyDelay) / 1000.0))s")
+                        Text("延迟: \(String(format: "%.2f", Double(settings.modifierKeyDelay) / 1000.0))秒")
                             .font(.caption2)
                         Slider(value: Binding(
                             get: { Double(settings.modifierKeyDelay) },
@@ -449,7 +449,7 @@ struct Main: View {
                     
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 5) {
-                            Text("Window Cycling").font(.subheadline)
+                            Text("窗口循环").font(.subheadline)
                             Button(action: {
                                 resetDialogs()
                                 showDialog = true
@@ -464,7 +464,7 @@ struct Main: View {
                         
                         VStack(alignment: .leading, spacing: 10) {
                             Group {
-                                Text("Cycle Forward").font(.caption2)
+                                Text("向前循环").font(.caption2)
                                 ShortcutInputView(shortcut: $settings.cycleWindowsForwardShortcut)
                                     .onChange(of: settings.cycleWindowsForwardShortcut) { newShortcut in
                                         if #available(macOS 12.0, *) {
@@ -476,7 +476,7 @@ struct Main: View {
                             }
                             
                             Group {
-                                Text("Cycle Backward").font(.caption2)
+                                Text("向后循环").font(.caption2)
                                 ShortcutInputView(shortcut: $settings.cycleWindowsBackwardShortcut)
                                     .onChange(of: settings.cycleWindowsBackwardShortcut) { newShortcut in
                                         if #available(macOS 12.0, *) {
@@ -496,7 +496,7 @@ struct Main: View {
                     VStack(alignment: .leading) {
                         VStack {
                             HStack(spacing: 5) {
-                                Text("Quick Snapper").font(.subheadline)
+                                Text("快速吸附").font(.subheadline)
                                 Button(action: {
                                     resetDialogs()
                                     showDialog = true
@@ -520,12 +520,12 @@ struct Main: View {
                         
                         Divider().padding(.vertical, 2)
                         
-                        Toggle("Snap resize", isOn: $settings.snapResize)
+                        Toggle("吸附调整大小", isOn: $settings.snapResize)
                             .toggleStyle(.checkbox)
                             .onChange(of: settings.snapResize) { _ in appSettings.save() }
                         
                         if settings.snapResize {
-                            Text("Threshold: \(Int(settings.snapResizeThreshold))px")
+                            Text("阈值: \(Int(settings.snapResizeThreshold))像素")
                                 .font(.caption2)
                                 .padding(.top, 4)
                             
@@ -535,7 +535,7 @@ struct Main: View {
                             ), in: 5...67, step: 2)
                             .onChange(of: settings.snapResizeThreshold) { _ in appSettings.save() }
                             
-                            Toggle("Show snap resizers on hover", isOn: $settings.showSnapResizersOnHover)
+                            Toggle("悬停时显示吸附调整器", isOn: $settings.showSnapResizersOnHover)
                                 .toggleStyle(.checkbox)
                                 .onChange(of: settings.showSnapResizersOnHover) { _ in appSettings.save() }
                             
@@ -543,12 +543,12 @@ struct Main: View {
                         }
                         
                         Group {
-                            Toggle("Prioritize zone center", isOn: $settings.prioritizeCenterToSnap)
+                            Toggle("优先区域中心", isOn: $settings.prioritizeCenterToSnap)
                                 .toggleStyle(.checkbox)
                                 .onChange(of: settings.prioritizeCenterToSnap) { _ in appSettings.save() }
                             
                             HStack(spacing: 5) {
-                                Text("Zone Highlighting Strategy").font(.subheadline)
+                                Text("区域高亮策略").font(.subheadline)
                                     .padding(.top, 4)
                                 
                                 Button(action: {
@@ -563,9 +563,9 @@ struct Main: View {
                                 .buttonStyle(BorderlessButtonStyle())
                             }
                             
-                            Picker("Zone Highlighting Strategy", selection: $settings.snapHighlightStrategy) {
-                                Text("Center Proximity").tag(SnapHighlightStrategy.centerProximity)
-                                Text("Flat").tag(SnapHighlightStrategy.flat)
+                            Picker("区域高亮策略", selection: $settings.snapHighlightStrategy) {
+                                Text("中心接近").tag(SnapHighlightStrategy.centerProximity)
+                                Text("平面").tag(SnapHighlightStrategy.flat)
                             }
                             .labelsHidden()
                             .pickerStyle(MenuPickerStyle())
@@ -574,12 +574,12 @@ struct Main: View {
                         
                         Divider().padding(.vertical, 2)
                         
-                        Toggle("Fallback previous size when unsnapped", isOn: $settings.fallbackToPreviousSize)
+                        Toggle("取消吸附时恢复之前大小", isOn: $settings.fallbackToPreviousSize)
                             .toggleStyle(.checkbox)
                             .onChange(of: settings.fallbackToPreviousSize) { _ in appSettings.save() }
                         
                         if settings.fallbackToPreviousSize {
-                            Toggle("Only with user event", isOn: $settings.onlyFallbackToPreviousSizeWithUserEvent)
+                            Toggle("仅用户操作时", isOn: $settings.onlyFallbackToPreviousSizeWithUserEvent)
                                 .toggleStyle(.checkbox)
                                 .onChange(of: settings.onlyFallbackToPreviousSizeWithUserEvent) { _ in appSettings.save() }
                         }
@@ -587,7 +587,7 @@ struct Main: View {
                         Divider().padding(.vertical, 2)
                         
                         HStack {
-                            Toggle("Per-desktop layouts", isOn: $settings.selectPerDesktopLayout)
+                            Toggle("按桌面布局", isOn: $settings.selectPerDesktopLayout)
                                 .toggleStyle(.checkbox)
                                 .onChange(of: settings.selectPerDesktopLayout) { _ in appSettings.save() }
                             
@@ -605,13 +605,13 @@ struct Main: View {
                         
                         Divider().padding(.vertical, 2)
                         
-                        Toggle("Shake to snap", isOn: $settings.shakeToSnap)
+                        Toggle("摇晃吸附", isOn: $settings.shakeToSnap)
                             .toggleStyle(.checkbox)
                             .onChange(of: settings.shakeToSnap) { _ in appSettings.save() }
                         
                         if settings.shakeToSnap {
                             HStack {
-                                Text("Shake Power").font(.caption2)
+                                Text("摇晃力度").font(.caption2)
                                     .padding(.top, 4)
                                 Spacer()
                                 Text(sensitivityLabel(for: settings.shakeAccelerationThreshold)).font(.caption2).foregroundColor(.secondary)
@@ -627,7 +627,7 @@ struct Main: View {
                     if #available(macOS 13.0, *) {
                         Divider().padding(.vertical, 2)
                         
-                        Toggle("Start at login", isOn: $startAtLogin)
+                        Toggle("登录时启动", isOn: $startAtLogin)
                             .toggleStyle(.checkbox)
                             .onChange(of: startAtLogin) { _ in 
                                 toggleRunAtStartup()
@@ -648,16 +648,16 @@ struct Main: View {
                     HStack {
                         if updater.isChecking {
                             Image(systemName: "arrow.clockwise.circle")
-                            Text("Checking...")
+                            Text("检查中...")
                         } else if updater.isDownloading {
                             ProgressView().font(.system(size: 12))
-                            Text("Downloading...")
+                            Text("下载中...")
                         } else if let isUpdatable = updater.isUpdatable, let latestVersion = updater.latestVersion, isUpdatable {
                             Image(systemName: "arrow.down.circle.fill")
-                            Text("Update to \(latestVersion)")
+                            Text("更新到 \(latestVersion)")
                         } else {
                             Image(systemName: "arrow.clockwise.circle")
-                            Text("Check for Updates")
+                            Text("检查更新")
                         }
                     }
                 }
@@ -669,21 +669,21 @@ struct Main: View {
                 }) {
                     HStack {
                         Image(systemName: "arrow.counterclockwise.circle")
-                        Text("Reset")
+                        Text("重置")
                     }
                 }
                 
                 if #available(macOS 12.0, *) {
                     Button(action: { showOnboarding() }) {
                         Image(systemName: "questionmark.circle")
-                        Text("Help")
+                        Text("帮助")
                     }
                 }
                 
                 Button(action: { NSApp.terminate(nil) }) {
                     HStack {
                         Image(systemName: "power")
-                        Text("Quit")
+                        Text("退出")
                     }
                 }
             }
@@ -695,144 +695,144 @@ struct Main: View {
         .alert(isPresented: $showDialog) {
             if showResetToDefaultsDialog {
                 return Alert(
-                    title: Text("Reset to Defaults"),
-                    message: Text("Are you sure you want to reset all settings to their default values? This action cannot be undone."),
-                    primaryButton: .destructive(Text("Reset")) {
+                    title: Text("重置为默认值"),
+                    message: Text("确定要将所有设置重置为默认值吗？此操作无法撤销。"),
+                    primaryButton: .destructive(Text("重置")) {
                         Task { @MainActor in
                             appSettings.resetToDefaults()
                         }
                     },
-                    secondaryButton: .cancel()
+                    secondaryButton: .cancel(Text("取消"))
                 )
             } else if showLayoutHelpDialog {
                 return Alert(
-                   title: Text("Layouts"),
+                   title: Text("布局"),
                    message: Text("""
-                   You can add, remove, rename layouts and select a layout for your current (screen, workspace) pair.
-               
-                   MacsyZones will remember the layout you selected for each (screen, workspace) pair.
-               
-                   Important: Please do NOT place your zones on multiple screens while you are editing a layout. It is an undefined behavior for MacsyZones so far.
-               
-                   Instead, you can create many layouts for each screen (or workspace) and switch between them easily; MacsyZones will remember the layout you selected for each (screen, workspace) pair.
-               
-                   Enjoy! 🥳
+                   您可以添加、删除、重命名布局，并为当前（屏幕，工作区）对选择布局。
+
+                   MacsyZones 会记住您为每个（屏幕，工作区）对选择的布局。
+
+                   重要提示：编辑布局时请不要将区域放置在多个屏幕上。这对 MacsyZones 来说是未定义行为。
+
+                   相反，您可以为每个屏幕（或工作区）创建多个布局并轻松切换；MacsyZones 会记住您为每个（屏幕，工作区）对选择的布局。
+
+                   祝您使用愉快！ 🥳
                """),
-                   dismissButton: .default(Text("OK"))
+                   dismissButton: .default(Text("好的"))
                 )
             } else if showModifierKeyHelpDialog {
                 return Alert(
-                   title: Text("Modifier Key"),
+                   title: Text("修饰键"),
                    message: Text("""
-                       Modifier key is mainly for performing snap resize but you can also use it to snap your windows to your zones.
-                   
-                       Modifier key has a delay that you can adjust; when you press and hold the modifier key, MacsyZones will start to show you the zones with snap resizers between them.
-                   
-                       You can hold the modifier key and perform snap resizing with your mouse or trackpad.
-                       
-                       Enjoy! 🥳
+                       修饰键主要用于执行吸附调整大小，但您也可以使用它将窗口吸附到区域。
+
+                       修饰键有一个可调整的延迟；当您按住修饰键时，MacsyZones 将开始显示区域和它们之间的吸附调整器。
+
+                       您可以按住修饰键并使用鼠标或触控板执行吸附调整大小。
+
+                       祝您使用愉快！ 🥳
                    """),
-                   dismissButton: .default(Text("OK"))
+                   dismissButton: .default(Text("好的"))
                 )
             } else if showSnapKeyHelpDialog {
                 return Alert(
-                   title: Text("Snap Key"),
+                   title: Text("吸附键"),
                    message: Text("""
-                       Snap key is for snapping your windows to your zones.
-                   
-                       You can hold the snap key and drag your windows to the zones.
-                   
-                       Snap key works only while you are moving a window.
-                   
-                       Enjoy! 🥳
+                       吸附键用于将窗口吸附到区域。
+
+                       您可以按住吸附键并将窗口拖动到区域。
+
+                       吸附键仅在移动窗口时有效。
+
+                       祝您使用愉快！ 🥳
                    """),
-                   dismissButton: .default(Text("OK"))
+                   dismissButton: .default(Text("好的"))
                 )
            } else if showQuickSnapperHelpDialog {
                return Alert(
-                   title: Text("Quick Snap Shortcut"),
+                   title: Text("快速吸附快捷键"),
                    message: Text("""
-                       Quick Snap shortcut is for activating the Quick Snapper. 
-                       
-                       Quick Snapper is a feature that allows you to snap your windows to your zones with your keyboard easily and very quickly.
-                   
-                       It is also useful as a window switcher. (Like Windows' Alt+Tab window switcher.)
-                       
-                       Enjoy! 🥳
+                       快速吸附快捷键用于激活快速吸附器。
+
+                       快速吸附器是一个允许您使用键盘轻松快速地将窗口吸附到区域的功能。
+
+                       它也可用作窗口切换器。（类似 Windows 的 Alt+Tab 窗口切换器。）
+
+                       祝您使用愉快！ 🥳
                    """),
-                   dismissButton: .default(Text("OK"))
+                   dismissButton: .default(Text("好的"))
                 )
            } else if showSnapResizeHelpDialog {
                return Alert(
-                  title: Text("Snap Resize"),
+                  title: Text("吸附调整大小"),
                   message: Text("""
-                      Snap resizing is a feature that allows you to resize your windows to your zones.
-                      
-                      You can enable or disable snap resizing and adjust the snap threshold.
-                  
-                      Modifier key has a delay that you can adjust; when you press and hold the modifier key, MacsyZones will start to show you the zones with snap resizers between them.
-                  
-                      You can hold the modifier key and perform snap resizing with your mouse or trackpad.
-                      
-                      Enjoy! 🥳
+                      吸附调整大小是一个允许您将窗口大小调整为区域的功能。
+
+                      您可以启用或禁用吸附调整大小并调整吸附阈值。
+
+                      修饰键有一个可调整的延迟；当您按住修饰键时，MacsyZones 将开始显示区域和它们之间的吸附调整器。
+
+                      您可以按住修饰键并使用鼠标或触控板执行吸附调整大小。
+
+                      祝您使用愉快！ 🥳
                   """),
-                  dismissButton: .default(Text("OK"))
+                  dismissButton: .default(Text("好的"))
                )
            } else if showWindowCyclingHelpDialog {
                return Alert(
-                  title: Text("Window Cycling"),
+                  title: Text("窗口循环"),
                   message: Text("""
-                      Window cycling allows you to quickly switch between multiple windows within the same zone.
-                      
-                      When you have multiple windows placed in the same zone, you can use the configured shortcuts to cycle through them.
-                      
-                      • Cycle Forward: Brings the next window in the zone to the front
-                      • Cycle Backward: Brings the previous window in the zone to the front
-                      
-                      The cycling will only affect windows that are currently placed in zones, and will cycle through windows in the same zone as the currently focused window.
-                      
-                      Enjoy! 🥳
+                      窗口循环允许您在同一区域内快速切换多个窗口。
+
+                      当您将多个窗口放置在同一区域时，可以使用配置的快捷键在它们之间循环。
+
+                      • 向前循环：将区域中的下一个窗口带到前台
+                      • 向后循环：将区域中的上一个窗口带到前台
+
+                      循环仅影响当前放置在区域中的窗口，并将在与当前聚焦窗口相同区域的窗口之间循环。
+
+                      祝您使用愉快！ 🥳
                   """),
-                  dismissButton: .default(Text("OK"))
+                  dismissButton: .default(Text("好的"))
                )
             } else if showSnapHighlightStrategyHelpDialog {
                 return Alert(
-                    title: Text("Zone Highlighting Strategy"),
+                    title: Text("区域高亮策略"),
                     message: Text("""
-                        While you are moving a window and holding Snap Key, you'll be seeing your zones; this option lets you choose how zones will be highlighted.
+                        当您移动窗口并按住吸附键时，您会看到您的区域；此选项让您可以选择如何高亮区域。
 
-                        We have two options; Center Proximity and Flat:
+                        我们有两个选项：中心接近和平面：
 
-                        • Center Proximity: The zone that has the closest center circle to mouse pointer will be highlighted.
-                        • Flat: The zone visibly most front and under mouse pointer will be highlighted.
+                        • 中心接近：距离鼠标指针最近的中心圆的区域将被高亮。
+                        • 平面：在鼠标指针下最前面可见的区域将被高亮。
 
-                        Note: The other option "Prioritize zone center" has higher priority.
+                        注意：另一个选项"优先区域中心"具有更高的优先级。
 
-                        Enjoy! 🥳
+                        祝您使用愉快！ 🥳
                     """),
-                    dismissButton: .default(Text("OK"))
+                    dismissButton: .default(Text("好的"))
                 )
             } else if showPerDesktopLayoutsHelpDialog {
                 return Alert(
-                    title: Text("Per-desktop layouts"),
+                    title: Text("按桌面布局"),
                     message: Text("""
-                        If you enable this option, MacsyZones will remember your preffered/selected layout for each macOS workspace (virtual desktop) / screen pair.
-                    
-                        Enjoy! 🥳
+                        如果启用此选项，MacsyZones 将记住您为每个 macOS 工作区（虚拟桌面）/ 屏幕对选择的布局。
+
+                        祝您使用愉快！ 🥳
                     """),
-                    dismissButton: .default(Text("OK"))
+                    dismissButton: .default(Text("好的"))
                 )
             } else {
                 return Alert(
-                    title: Text("About MacsyZones"),
+                    title: Text("关于 MacsyZones"),
                     message: Text("""
                         Copyright ©️ 2024, Oğuzhan Eroğlu (https://meowingcat.io).
 
-                        MacsyZones helps you organize your windows efficiently.
+                        MacsyZones 帮助您高效地组织窗口。
 
-                        Version: \(appVersion) (Build: \(appBuild))
+                        版本: \(appVersion) (构建: \(appBuild))
                     """),
-                    dismissButton: .cancel(Text("OK"))
+                    dismissButton: .cancel(Text("好的"))
                 )
             }
         }
@@ -843,7 +843,7 @@ struct NewView: View {
     @Binding var page: String
     @ObservedObject var layouts = userLayouts
 
-    @State var layoutName: String = "My Layout"
+    @State var layoutName: String = "我的布局"
     @State var layoutType: LayoutType = .zone
     @State var gridRows: Int = 3
     @State var gridColumns: Int = 3
@@ -854,22 +854,22 @@ struct NewView: View {
         VStack {
             Text("MacsyZones").font(.headline).padding(.bottom, 10)
 
-            Text("Layout Name:").font(.subheadline)
+            Text("布局名称:").font(.subheadline)
 
             VStack {
-                TextField("Enter Layout Name", text: $layoutName).cornerRadius(5)
+                TextField("输入布局名称", text: $layoutName).cornerRadius(5)
 
-                Picker("Layout Type", selection: $layoutType) {
-                    Text("Zones").tag(LayoutType.zone)
-                    Text("Grid").tag(LayoutType.grid)
+                Picker("布局类型", selection: $layoutType) {
+                    Text("区域").tag(LayoutType.zone)
+                    Text("网格").tag(LayoutType.grid)
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .padding(.vertical, 4)
 
                 if layoutType == .grid {
                     VStack(spacing: 6) {
-                        Stepper("Rows: \(gridRows)", value: $gridRows, in: 1...24)
-                        Stepper("Columns: \(gridColumns)", value: $gridColumns, in: 1...24)
+                        Stepper("行数: \(gridRows)", value: $gridRows, in: 1...24)
+                        Stepper("列数: \(gridColumns)", value: $gridColumns, in: 1...24)
                     }
                     .padding(8)
                     .background(Color.gray.opacity(0.1))
@@ -881,7 +881,7 @@ struct NewView: View {
                         page = "main"
                     }) {
                         Image(systemName: "xmark").foregroundColor(.red)
-                        Text("Cancel")
+                        Text("取消")
                     }
 
                     Button(action: {
@@ -905,7 +905,7 @@ struct NewView: View {
                         page = "main"
                     }) {
                         Image(systemName: "checkmark").foregroundColor(.green)
-                        Text("Create")
+                        Text("创建")
                     }
                     .disabled(layoutName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
@@ -913,9 +913,9 @@ struct NewView: View {
         }
         .alert(isPresented: $showAlreadyExistsAlert) {
             Alert(
-                title: Text("Omg!"),
-                message: Text("Another layout with this name already exists. Please choose another name."),
-                dismissButton: .default(Text("OK"))
+                title: Text("提示"),
+                message: Text("已存在同名布局，请选择其他名称。"),
+                dismissButton: .default(Text("好的"))
             )
         }
     }
@@ -924,36 +924,36 @@ struct NewView: View {
 struct RenameView: View {
     @Binding var page: String
     @ObservedObject var layouts = userLayouts
-    
+
     @State var layoutName: String = ""
-    
+
     var body: some View {
         VStack {
             Text("MacsyZones").font(.headline).padding(.bottom, 10)
-            
-            Text("Layout Name:").font(.subheadline)
-            
+
+            Text("布局名称:").font(.subheadline)
+
             VStack {
-                TextField("Enter Layout Name", text: $layoutName).cornerRadius(5)
-                
+                TextField("输入布局名称", text: $layoutName).cornerRadius(5)
+
                 HStack(alignment: .center) {
                     Button(action: {
                         page = "main"
                     }) {
                         Image(systemName: "xmark").foregroundColor(.red)
-                        Text("Cancel")
+                        Text("取消")
                     }
-                    
+
                     Button(action: {
                         if layoutName.trimmingCharacters(in: .whitespaces).isEmpty {
                             return
                         }
-                        
+
                         userLayouts.renameCurrentLayout(to: layoutName)
                         page = "main"
                     }) {
                         Image(systemName: "checkmark").foregroundColor(.green)
-                        Text("Rename")
+                        Text("重命名")
                     }
                     .disabled(layoutName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
@@ -965,45 +965,45 @@ struct RenameView: View {
 struct DuplicateView: View {
     @Binding var page: String
     @ObservedObject var layouts = userLayouts
-    
+
     @State var layoutName: String
-    
+
     @State var showAlreadyExistsAlert: Bool = false
-    
+
     var body: some View {
         VStack {
             Text("MacsyZones").font(.headline).padding(.bottom, 10)
-            
-            Text("Layout Name:").font(.subheadline)
-            
+
+            Text("布局名称:").font(.subheadline)
+
             VStack {
-                TextField("Enter Layout Name", text: $layoutName).cornerRadius(5)
-                
+                TextField("输入布局名称", text: $layoutName).cornerRadius(5)
+
                 HStack(alignment: .center) {
                     Button(action: {
                         page = "main"
                     }) {
                         Image(systemName: "xmark").foregroundColor(.red)
-                        Text("Cancel")
+                        Text("取消")
                     }
-                    
+
                     Button(action: {
                         if layoutName.trimmingCharacters(in: .whitespaces).isEmpty {
                             return
                         }
-                        
+
                         if layouts.layouts.keys.contains(layoutName) {
                             showAlreadyExistsAlert = true
                             return
                         }
-                        
+
                         layouts.duplicateCurrentLayout(newName: layoutName)
                         startEditing()
-                        
+
                         page = "main"
                     }) {
                         Image(systemName: "checkmark").foregroundColor(.green)
-                        Text("Duplicate")
+                        Text("复制")
                     }
                     .disabled(layoutName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
@@ -1011,9 +1011,9 @@ struct DuplicateView: View {
         }
         .alert(isPresented: $showAlreadyExistsAlert) {
             Alert(
-                title: Text("Omg! 😊"),
-                message: Text("Another layout with this name already exists. Please choose another name."),
-                dismissButton: .default(Text("OK"))
+                title: Text("提示"),
+                message: Text("已存在同名布局，请选择其他名称。"),
+                dismissButton: .default(Text("好的"))
             )
         }
     }
@@ -1090,7 +1090,7 @@ struct GridEditorView: View {
                     page = "main"
                 }) {
                     Image(systemName: "xmark").foregroundColor(.red)
-                    Text("Cancel")
+                    Text("取消")
                 }
 
                 Button(action: {
@@ -1102,7 +1102,7 @@ struct GridEditorView: View {
                     page = "main"
                 }) {
                     Image(systemName: "checkmark").foregroundColor(.green)
-                    Text("Save")
+                    Text("保存")
                 }
             }
         }

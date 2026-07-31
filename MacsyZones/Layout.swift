@@ -453,21 +453,21 @@ struct ScreenChangeWarningView: View {
                 .foregroundColor(.accentColor)
             
             VStack(alignment: .center, spacing: 2) {
-                Text("Layout Design")
+                Text("布局设计")
                     .lineSpacing(6)
                     .font(.title2)
-                
+
                 Spacer().frame(height: 16)
-                
-                Text("A layout can be designed on one screen.")
+
+                Text("布局可以在一个屏幕上设计。")
                     .font(.system(size: 13))
                     .lineSpacing(5)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-                
+
                 Spacer().frame(height: 8)
-                
-                Text("You can select your preferred layouts for each screen and workspace.")
+
+                Text("您可以为每个屏幕和工作区选择首选布局。")
                     .font(.system(size: 13))
                     .lineSpacing(5)
                     .multilineTextAlignment(.center)
@@ -480,7 +480,7 @@ struct ScreenChangeWarningView: View {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "info.circle.fill")
                             .foregroundColor(.accentColor)
-                        Text("Tip: Design different layouts for each screen and workspace for your workflow.")
+                        Text("提示：为每个屏幕和工作区设计不同的布局以适应您的工作流程。")
                             .font(.system(size: 12))
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -494,7 +494,7 @@ struct ScreenChangeWarningView: View {
                 Button(action: {
                     onDismiss?()
                 }) {
-                    Text("Got It")
+                    Text("知道了")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(Color.accentColor)
@@ -796,7 +796,7 @@ struct EditorBarView: View {
                 }) {
                     HStack {
                         Image(systemName: "plus")
-                        Text("New Zone")
+                        Text("新建区域")
                     }
                 }.frame(maxHeight: .infinity)
                  .buttonStyle(AccessoryBarButtonStyle())
@@ -806,7 +806,7 @@ struct EditorBarView: View {
                 }) {
                     HStack {
                         Image(systemName: "plus")
-                        Text("New Zone")
+                        Text("新建区域")
                     }
                 }.frame(maxHeight: .infinity)
             }
@@ -820,7 +820,7 @@ struct EditorBarView: View {
                             Image(nsImage: image)
                                 .renderingMode(.template)
                         }
-                        Text("Add Smart Gap")
+                        Text("添加智能间距")
                     }
                 }
                 .frame(maxHeight: .infinity)
@@ -835,7 +835,7 @@ struct EditorBarView: View {
                             Image(nsImage: image)
                                 .renderingMode(.template)
                         }
-                        Text("Add Smart Gap")
+                        Text("添加智能间距")
                     }
                 }
                 .frame(maxHeight: .infinity)
@@ -846,7 +846,7 @@ struct EditorBarView: View {
                 Button(action: onSave) {
                     HStack {
                         Image(systemName: "checkmark")
-                        Text("Save")
+                        Text("保存")
                     }
                 }.frame(maxHeight: .infinity)
                  .buttonStyle(AccessoryBarButtonStyle())
@@ -854,7 +854,7 @@ struct EditorBarView: View {
                 Button(action: onSave) {
                     HStack {
                         Image(systemName: "checkmark")
-                        Text("Save")
+                        Text("保存")
                     }
                 }.frame(maxHeight: .infinity)
             }
@@ -863,7 +863,7 @@ struct EditorBarView: View {
                 Button(action: onCancel) {
                     HStack {
                         Image(systemName: "xmark")
-                        Text("Cancel")
+                        Text("取消")
                     }
                 }.frame(maxHeight: .infinity)
                  .buttonStyle(AccessoryBarButtonStyle())
@@ -871,7 +871,7 @@ struct EditorBarView: View {
                 Button(action: onCancel) {
                     HStack {
                         Image(systemName: "xmark")
-                        Text("Cancel")
+                        Text("取消")
                     }
                 }.frame(maxHeight: .infinity)
             }
@@ -883,9 +883,9 @@ struct EditorBarView: View {
         .background(BlurredWindowBackground(material: .hudWindow, blendingMode: .behindWindow).cornerRadius(26).padding(.horizontal, 7))
         .alert(isPresented: $showNotProDialog) {
             Alert(
-                title: Text("Omg! 😊"),
-                message: Text("You must buy MacsyZones Pro to unlock this feature."),
-                dismissButton: .default(Text("OK"))
+                title: Text("提示"),
+                message: Text("此功能需要购买 MacsyZones Pro 才能解锁。"),
+                dismissButton: .default(Text("好的"))
             )
         }
     }

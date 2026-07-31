@@ -158,7 +158,7 @@ struct QuickSnapperView: View {
             .padding(.horizontal)
             
             if windows.count == 0 {
-                Text("Nothing to snap").frame(maxWidth: .infinity,
+                Text("没有可吸附的窗口").frame(maxWidth: .infinity,
                                               minHeight: 100,
                                               alignment: .center)
             } else {
@@ -206,7 +206,7 @@ struct QuickSnapperView: View {
             }) {
                 HStack {
                     Image(systemName: "checkmark")
-                    Text("Done")
+                    Text("完成")
                 }
             }
         }
