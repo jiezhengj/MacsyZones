@@ -149,9 +149,14 @@ struct SettingsView: View {
                     if updater.isChecking {
                         ProgressView()
                             .scaleEffect(0.8)
+                    } else if updater.isDownloading {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("下载中...")
+                            .font(.caption)
                     } else if updater.isUpdatable == true {
                         Button("更新到 \(updater.latestVersion ?? "")") {
-                            updater.checkForUpdates()
+                            updater.downloadAndInstall()
                         }
                     }
 
