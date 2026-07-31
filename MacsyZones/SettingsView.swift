@@ -17,32 +17,10 @@ import ServiceManagement
 struct SettingsView: View {
     @ObservedObject var state: SettingsState
 
-    @State private var showAboutDialog = false
     @State private var showResetToDefaultsDialog = false
     @State private var showDialog = false
-    @State private var showLayoutHelpDialog = false
-    @State private var showModifierKeyHelpDialog = false
-    @State private var showSnapKeyHelpDialog = false
-    @State private var showQuickSnapperHelpDialog = false
-    @State private var showSnapResizeHelpDialog = false
-    @State private var showWindowCyclingHelpDialog = false
-    @State private var showSnapHighlightStrategyHelpDialog = false
-    @State private var showPerDesktopLayoutsHelpDialog = false
-
     @State private var startAtLogin = false
     @ObservedObject var updater = appUpdater
-
-    func resetDialogs() {
-        showDialog = false
-        showLayoutHelpDialog = false
-        showModifierKeyHelpDialog = false
-        showSnapKeyHelpDialog = false
-        showQuickSnapperHelpDialog = false
-        showSnapResizeHelpDialog = false
-        showWindowCyclingHelpDialog = false
-        showSnapHighlightStrategyHelpDialog = false
-        showPerDesktopLayoutsHelpDialog = false
-    }
 
     func sensitivityLabel(for threshold: CGFloat) -> String {
         let minSensitivity: CGFloat = 10000
@@ -238,7 +216,6 @@ struct LayoutSettingsSection: View {
     @ObservedObject var state: SettingsState
     @ObservedObject var layouts = userLayouts
 
-    @State private var showLayoutHelpDialog = false
     @State private var showNewView = false
     @State private var showRenameView = false
     @State private var showDuplicateView = false
@@ -251,8 +228,15 @@ struct LayoutSettingsSection: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 5) {
                 Text("布局").font(.subheadline)
-                Button(action: { showLayoutHelpDialog = true }) {
-                    Image(systemName: "info.circle")
+                Button(action: {
+                    let alert = NSAlert()
+                    alert.messageText = "添加和设计布局"
+                    alert.informativeText = "创建适合您需求的自定义布局。\n\n1. 点击菜单栏中的铅笔图标进入编辑模式\n2. 点击 + 按钮添加区域\n3. 通过拖动边缘调整区域大小和位置\n4. 为不同的工作流程创建新布局\n\n注意：MacsyZones 会记住您为每个屏幕和工作区组合选择的首选布局。您可以在屏幕上选择首选布局。"
+                    alert.alertStyle = .informational
+                    alert.addButton(withTitle: "确定")
+                    alert.runModal()
+                }) {
+                    Image(systemName: "questionmark.circle")
                         .font(.system(size: 13))
                         .imageScale(.small)
                 }
@@ -326,13 +310,6 @@ struct LayoutSettingsSection: View {
                 }
                 .padding(.top, 2)
             }
-        }
-        .alert(isPresented: $showLayoutHelpDialog) {
-            Alert(
-                title: Text("添加和设计布局"),
-                message: Text("创建适合您需求的自定义布局。\n\n1. 点击菜单栏中的铅笔图标进入编辑模式\n2. 点击 + 按钮添加区域\n3. 通过拖动边缘调整区域大小和位置\n4. 为不同的工作流程创建新布局\n\n注意：MacsyZones 会记住您为每个屏幕和工作区组合选择的首选布局。您可以在屏幕上选择首选布局。"),
-                dismissButton: .default(Text("确定"))
-            )
         }
         .sheet(isPresented: $showRenameView) {
             RenameView(isPresented: $showRenameView, layouts: layouts)
@@ -515,25 +492,24 @@ struct NewView: View {
 // MARK: - Snap Key Settings Section
 struct SnapKeySettingsSection: View {
     @ObservedObject var state: SettingsState
-    @State private var showHelp = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 5) {
                 Text("吸附键").font(.subheadline)
-                Button(action: { showHelp = true }) {
+                Button(action: {
+                    let alert = NSAlert()
+                    alert.messageText = "吸附窗口"
+                    alert.informativeText = "将窗口吸附到区域是快速且直观的。\n\n1. 拖动窗口时按住吸附键（默认：Shift）\n2. 您的区域将出现在屏幕上\n3. 将窗口移动到目标区域上方\n4. 释放即可将窗口吸附到位\n\n提示：您也可以使用右键点击吸附（默认启用）来吸附窗口，无需按住吸附键。"
+                    alert.alertStyle = .informational
+                    alert.addButton(withTitle: "确定")
+                    alert.runModal()
+                }) {
                     Image(systemName: "questionmark.circle")
                         .font(.system(size: 13))
                         .imageScale(.small)
                 }
                 .buttonStyle(BorderlessButtonStyle())
-            }
-            .alert(isPresented: $showHelp) {
-                Alert(
-                    title: Text("吸附窗口"),
-                    message: Text("将窗口吸附到区域是快速且直观的。\n\n1. 拖动窗口时按住吸附键（默认：Shift）\n2. 您的区域将出现在屏幕上\n3. 将窗口移动到目标区域上方\n4. 释放即可将窗口吸附到位\n\n提示：您也可以使用右键点击吸附（默认启用）来吸附窗口，无需按住吸附键。"),
-                    dismissButton: .default(Text("确定"))
-                )
             }
 
             Picker("吸附键", selection: Binding(
@@ -569,25 +545,24 @@ struct SnapKeySettingsSection: View {
 // MARK: - Modifier Key Settings Section
 struct ModifierKeySettingsSection: View {
     @ObservedObject var state: SettingsState
-    @State private var showHelp = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 5) {
                 Text("修饰键").font(.subheadline)
-                Button(action: { showHelp = true }) {
+                Button(action: {
+                    let alert = NSAlert()
+                    alert.messageText = "摇晃吸附"
+                    alert.informativeText = "一种神奇的方式通过运动来吸附窗口。\n\n1. 点击并按住窗口的标题栏\n2. 快速摇晃鼠标或触控板\n3. 区域将自动出现\n4. 移动并释放即可吸附\n\n提示：在设置中调整摇晃灵敏度以匹配您的偏好。此功能非常适合触控板用户！"
+                    alert.alertStyle = .informational
+                    alert.addButton(withTitle: "确定")
+                    alert.runModal()
+                }) {
                     Image(systemName: "questionmark.circle")
                         .font(.system(size: 13))
                         .imageScale(.small)
                 }
                 .buttonStyle(BorderlessButtonStyle())
-            }
-            .alert(isPresented: $showHelp) {
-                Alert(
-                    title: Text("摇晃吸附"),
-                    message: Text("一种神奇的方式通过运动来吸附窗口。\n\n1. 点击并按住窗口的标题栏\n2. 快速摇晃鼠标或触控板\n3. 区域将自动出现\n4. 移动并释放即可吸附\n\n提示：在设置中调整摇晃灵敏度以匹配您的偏好。此功能非常适合触控板用户！"),
-                    dismissButton: .default(Text("确定"))
-                )
             }
 
             Picker("修饰键", selection: Binding(
@@ -623,25 +598,24 @@ struct ModifierKeySettingsSection: View {
 // MARK: - Window Cycling Settings Section
 struct WindowCyclingSettingsSection: View {
     @ObservedObject var state: SettingsState
-    @State private var showHelp = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 5) {
                 Text("窗口循环").font(.subheadline)
-                Button(action: { showHelp = true }) {
+                Button(action: {
+                    let alert = NSAlert()
+                    alert.messageText = "窗口循环"
+                    alert.informativeText = "使用键盘快捷键在窗口之间快速切换。\n\n向前循环：Command+]\n向后循环：Command+[\n\n您可以在设置中自定义快捷键。"
+                    alert.alertStyle = .informational
+                    alert.addButton(withTitle: "确定")
+                    alert.runModal()
+                }) {
                     Image(systemName: "questionmark.circle")
                         .font(.system(size: 13))
                         .imageScale(.small)
                 }
                 .buttonStyle(BorderlessButtonStyle())
-            }
-            .alert(isPresented: $showHelp) {
-                Alert(
-                    title: Text("窗口循环"),
-                    message: Text("使用键盘快捷键在窗口之间快速切换。\n\n向前循环：Command+]\n向后循环：Command+[\n\n您可以在设置中自定义快捷键。"),
-                    dismissButton: .default(Text("确定"))
-                )
             }
 
             VStack(alignment: .leading, spacing: 10) {
@@ -674,26 +648,24 @@ struct WindowCyclingSettingsSection: View {
 // MARK: - Quick Snapper Settings Section
 struct QuickSnapperSettingsSection: View {
     @ObservedObject var state: SettingsState
-    @State private var showQuickSnapperHelp = false
-    @State private var showSnapResizeHelp = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 5) {
                 Text("快速吸附").font(.subheadline)
-                Button(action: { showQuickSnapperHelp = true }) {
+                Button(action: {
+                    let alert = NSAlert()
+                    alert.messageText = "快速吸附"
+                    alert.informativeText = "快速吸附是一个轻量级窗口管理工具，让您使用键盘快捷键将窗口吸附到预定义区域。\n\n1. 使用快速吸附快捷键（默认：Control+Shift+S）切换快速吸附模式\n2. 使用方向键 ↑ / ↓ 在区域间导航，← / → 在布局间导航\n3. 按区域编号（1-9）将选定窗口吸附到该区域\n4. 按 Delete 取消吸附选定窗口\n5. 按 Enter 完成操作\n\n效率：快速吸附专为偏好键盘中心工作流程的用户设计，无需离开键盘即可快速管理窗口。您可以用它作为吸附器、布局切换器和快速窗口切换器。"
+                    alert.alertStyle = .informational
+                    alert.addButton(withTitle: "确定")
+                    alert.runModal()
+                }) {
                     Image(systemName: "questionmark.circle")
                         .font(.system(size: 13))
                         .imageScale(.small)
                 }
                 .buttonStyle(BorderlessButtonStyle())
-            }
-            .alert(isPresented: $showQuickSnapperHelp) {
-                Alert(
-                    title: Text("快速吸附"),
-                    message: Text("快速吸附是一个轻量级窗口管理工具，让您使用键盘快捷键将窗口吸附到预定义区域。\n\n1. 使用快速吸附快捷键（默认：Control+Shift+S）切换快速吸附模式\n2. 使用方向键 ↑ / ↓ 在区域间导航，← / → 在布局间导航\n3. 按区域编号（1-9）将选定窗口吸附到该区域\n4. 按 Delete 取消吸附选定窗口\n5. 按 Enter 完成操作\n\n效率：快速吸附专为偏好键盘中心工作流程的用户设计，无需离开键盘即可快速管理窗口。您可以用它作为吸附器、布局切换器和快速窗口切换器。"),
-                    dismissButton: .default(Text("确定"))
-                )
             }
 
             ShortcutInputView(shortcut: Binding(
@@ -716,19 +688,19 @@ struct QuickSnapperSettingsSection: View {
                 ))
                 .toggleStyle(.checkbox)
 
-                Button(action: { showSnapResizeHelp = true }) {
+                Button(action: {
+                    let alert = NSAlert()
+                    alert.messageText = "吸附调整大小"
+                    alert.informativeText = "使用区域边缘精确调整窗口大小。\n\n1. 将鼠标指针移动到两个区域边缘交汇处，或按住修饰键（默认：Control）片刻\n2. 吸附调整器将出现在区域之间\n3. 将窗口边缘拖动到吸附调整器附近\n4. 边缘将吸附到调整器以实现完美对齐\n\n功能：在设置中启用'悬停时显示吸附调整器'，无需按住修饰键即可立即查看。"
+                    alert.alertStyle = .informational
+                    alert.addButton(withTitle: "确定")
+                    alert.runModal()
+                }) {
                     Image(systemName: "questionmark.circle")
                         .font(.system(size: 13))
                         .imageScale(.small)
                 }
                 .buttonStyle(BorderlessButtonStyle())
-            }
-            .alert(isPresented: $showSnapResizeHelp) {
-                Alert(
-                    title: Text("吸附调整大小"),
-                    message: Text("使用区域边缘精确调整窗口大小。\n\n1. 将鼠标指针移动到两个区域边缘交汇处，或按住修饰键（默认：Control）片刻\n2. 吸附调整器将出现在区域之间\n3. 将窗口边缘拖动到吸附调整器附近\n4. 边缘将吸附到调整器以实现完美对齐\n\n功能：在设置中启用'悬停时显示吸附调整器'，无需按住修饰键即可立即查看。"),
-                    dismissButton: .default(Text("确定"))
-                )
             }
 
             if state.tempAppSettings.snapResize ?? true {
@@ -761,25 +733,24 @@ struct QuickSnapperSettingsSection: View {
 struct AdvancedSettingsSection: View {
     @ObservedObject var state: SettingsState
     @State private var startAtLogin = false
-    @State private var showHelp = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 5) {
                 Text("高级设置").font(.subheadline)
-                Button(action: { showHelp = true }) {
+                Button(action: {
+                    let alert = NSAlert()
+                    alert.messageText = "高级设置"
+                    alert.informativeText = "高级窗口管理设置。\n\n优先区域中心：吸附时优先考虑区域中心位置\n区域高亮策略：选择区域高亮的显示方式\n取消吸附时恢复之前大小：窗口取消吸附时恢复原始尺寸\n按桌面布局：为不同桌面空间选择不同布局"
+                    alert.alertStyle = .informational
+                    alert.addButton(withTitle: "确定")
+                    alert.runModal()
+                }) {
                     Image(systemName: "questionmark.circle")
                         .font(.system(size: 13))
                         .imageScale(.small)
                 }
                 .buttonStyle(BorderlessButtonStyle())
-            }
-            .alert(isPresented: $showHelp) {
-                Alert(
-                    title: Text("高级设置"),
-                    message: Text("高级窗口管理设置。\n\n优先区域中心：吸附时优先考虑区域中心位置\n区域高亮策略：选择区域高亮的显示方式\n取消吸附时恢复之前大小：窗口取消吸附时恢复原始尺寸\n按桌面布局：为不同桌面空间选择不同布局"),
-                    dismissButton: .default(Text("确定"))
-                )
             }
 
             Group {
