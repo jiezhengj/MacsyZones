@@ -20,26 +20,15 @@
 ### 分支策略
 
 ```
-main     ← 跟踪上游仓库，保持原始代码
-custom   ← 你的改造版本，基于 main
+custom   ← 默认分支，你的改造版本
+upstream ← 上游仓库（rohanrhu/MacsyZones），仅用于拉取更新
 ```
 
-### 首次设置（只需做一次）
+### 当前状态
 
-```bash
-# 1. 添加上游仓库
-git remote add upstream https://github.com/rohanrhu/MacsyZones.git
-git fetch upstream
-
-# 2. 创建 custom 分支保存改造
-git checkout -b custom
-git add .
-git commit -m "Remove Pro/Donation restrictions"
-
-# 3. 确保 main 分支跟踪上游
-git checkout main
-git branch -u upstream/main
-```
+- **默认分支**: `custom`
+- **上游仓库**: `rohanrhu/MacsyZones`（只读，永不推送）
+- **本项目仓库**: `jiezhengj/MacsyZones`（所有推送的目标）
 
 ### 同步上游更新（每次需要更新时执行）
 

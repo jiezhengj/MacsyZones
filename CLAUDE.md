@@ -58,8 +58,8 @@ MacsyZones 是 macOS 窗口管理应用，此版本移除了所有商业限制�
 
 ### 分支结构
 ```
-main     ← 跟踪上游仓库
-custom   ← 自定义改造版本
+custom   ← 默认分支，自定义改造版本
+upstream ← 上游仓库（rohanrhu/MacsyZones），仅用于拉取更新
 ```
 
 ### 同步流程
