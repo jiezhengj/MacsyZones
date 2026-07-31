@@ -174,15 +174,12 @@ struct ShortcutInputView: View {
 }
 
 struct Main: View {
-    @State var proLock: ProLock
-    
     @Binding var page: String
-    
+
     @ObservedObject var settings = appSettings
-    
+
     @ObservedObject var layouts = userLayouts
-    
-    @State var showNotProDialog = false
+
     @State var showAboutDialog = false
     @State var showResetToDefaultsDialog = false
     
@@ -264,11 +261,7 @@ struct Main: View {
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
             HStack(alignment: .center, spacing: 5) {
-                if proLock.isPro {
-                    Text("MacsyZones Pro").font(.headline)
-                } else {
-                    Text("MacsyZones").font(.headline)
-                }
+                Text("MacsyZones").font(.headline)
                 Button(action: {
                     resetDialogs()
                     showDialog = true
@@ -670,30 +663,7 @@ struct Main: View {
                 }
                 .fixedSize()
             }
-            
-            #if !APPSTORE
-            if !proLock.isPro {
-                Divider().padding(.vertical, 2)
-                Button(action: { page = "unlock" }) {
-                    HStack {
-                        Image(systemName: "heart.fill").foregroundColor(.red)
-                        Text("Unlock Pro Version").fontWeight(.bold)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(10)
-                .background(Color.pink.opacity(0.2))
-                .cornerRadius(7)
-                .alert(isPresented: $showNotProDialog) {
-                    Alert(
-                        title: Text("Omg! 😊"),
-                        message: Text("You must buy MacsyZones Pro to unlock this feature."),
-                        dismissButton: .default(Text("OK"))
-                    )
-                }
-            }
-            #endif
-            
+
             HStack {
                 Button(action: { updater.checkForUpdates() }) {
                     HStack {
@@ -886,26 +856,16 @@ struct Main: View {
                     dismissButton: .default(Text("OK"))
                 )
             } else {
-                let licenseInfo = proLock.isPro ? "\nLicensed for: \(proLock.owner ?? "Unknown User")" : "(Free version)"
-                
                 return Alert(
                     title: Text("About MacsyZones"),
                     message: Text("""
                         Copyright ©️ 2024, Oğuzhan Eroğlu (https://meowingcat.io).
-                        
+
                         MacsyZones helps you organize your windows efficiently.
-                        
+
                         Version: \(appVersion) (Build: \(appBuild))
-                    
-                        \(!proLock.isPro ? "Please buy MacsyZones to support me. 🥳": "Thank you for your support. 🥳")
-                        \(licenseInfo)
                     """),
-                    primaryButton: .default(Text("Visit Website")) {
-                        if let url = URL(string: "https://macsyzones.com") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    },
-                    secondaryButton: .cancel(Text("OK"))
+                    dismissButton: .cancel(Text("OK"))
                 )
             }
         }
@@ -1092,82 +1052,6 @@ struct DuplicateView: View {
     }
 }
 
-struct UnlockProView: View {
-    @State var proLock: ProLock
-    
-    @Binding var page: String
-    @State private var licenseKey: String = ""
-    @State private var errorMessage: String? = nil
-    
-    var body: some View {
-        VStack {
-            Text("Unlock Pro Version").font(.headline).padding(.bottom, 10)
-            
-            Text("Enter your License Key").font(.subheadline)
-            
-            VStack {
-                TextField("Enter License Key", text: $licenseKey)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding(.bottom, 10)
-                    .onChange(of: licenseKey) { _ in
-                        errorMessage = nil
-                    }
-                
-                if let errorMessage = errorMessage {
-                    Text(errorMessage)
-                        .font(.caption)
-                        .foregroundColor(.red)
-                        .padding(.bottom, 10)
-                }
-                
-                HStack(alignment: .center) {
-                    Button(action: {
-                        page = "main"
-                    }) {
-                        Image(systemName: "xmark").foregroundColor(.red)
-                        Text("Cancel")
-                    }
-                    
-                    Button(action: {
-                        if validateLicenseKey(licenseKey) {
-                            unlockProVersion(with: licenseKey)
-                            page = "main"
-                        } else {
-                            errorMessage = "Invalid License Key. Please try again."
-                        }
-                    }) {
-                        Image(systemName: "checkmark").foregroundColor(.green)
-                        Text("Unlock")
-                    }
-                }
-                .padding(.bottom, 10)
-                
-                Button(action: {
-                    openPurchaseLink()
-                }) {
-                    Image(systemName: "cart").foregroundColor(.blue)
-                    Text("Buy Pro License Key")
-                }
-            }
-        }
-        .frame(minWidth: 300)
-    }
-    
-    func validateLicenseKey(_ key: String) -> Bool {
-        return proLock.setLicenseKey(key)
-    }
-    
-    func unlockProVersion(with key: String) {
-        debugLog("Pro version unlocked 🥳")
-    }
-    
-    func openPurchaseLink() {
-        if let url = URL(string: "https://macsyzones.com/") {
-            NSWorkspace.shared.open(url)
-        }
-    }
-}
-
 struct GridPreview: View {
     let rows: Int
     let columns: Int
@@ -1260,24 +1144,23 @@ struct GridEditorView: View {
 
 struct TrayPopupView: View {
     @ObservedObject var ready = macsyReady
-    @ObservedObject var proLock = macsyProLock
-    
+
     @State private var page = "main"
     @ObservedObject var layouts = userLayouts
-    
+
     func generateUniqueDuplicateName() -> String {
         let baseName = layouts.currentLayoutName
         var copyName = baseName + " Copy"
         var counter = 2
-        
+
         while layouts.layouts.keys.contains(copyName) {
             copyName = baseName + " Copy \(counter)"
             counter += 1
         }
-        
+
         return copyName
     }
-    
+
     var body: some View {
         if !ready.isReady {
             VStack {
@@ -1297,10 +1180,8 @@ struct TrayPopupView: View {
                     DuplicateView(page: $page, layoutName: generateUniqueDuplicateName())
                 case "editGrid":
                     GridEditorView(page: $page)
-                case "unlock":
-                    UnlockProView(proLock: proLock, page: $page)
                 default:
-                    Main(proLock: proLock, page: $page)
+                    Main(page: $page)
                 }
             }
             .padding()
