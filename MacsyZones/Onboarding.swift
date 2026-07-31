@@ -99,38 +99,38 @@ struct OnboardingView: View {
     
     private let pages: [OnboardingPage] = [
         OnboardingPage(
-            title: "Welcome to MacsyZones",
-            description: "**MacsyZones** is your ultimate window management companion for macOS.\n\nOrganize your workspace efficiently with **powerful snap zones**, boost your productivity with **keyboard shortcuts**, and customize layouts to match your workflow.\n\nMacsyZones has unique features that makes lives better. I'm always working to make it better. You can **buy MacsyZones** to support me. Also you can **donate** to me any amount you want.\n\nVisit [macsyzones.com](https://macsyzones.com) to buy and see how you can support me. 🥳\n\nLet's get started! 🚀",
+            title: "欢迎使用 MacsyZones",
+            description: "**MacsyZones** 是您在 macOS 上的终极窗口管理伴侣。\n\n通过**强大的吸附区域**高效组织工作空间，使用**键盘快捷键**提升生产力，并自定义布局以匹配您的工作流程。\n\nMacsyZones 拥有独特的功能，让生活更美好。我一直在努力让它变得更好。您可以**购买 MacsyZones** 来支持我，也可以**捐赠**任意金额。\n\n访问 [macsyzones.com](https://macsyzones.com) 购买并了解如何支持我。🥳\n\n让我们开始吧！🚀",
             video: "MacsyZones Onboarding Welcome",
             icon: NSImage(named: "MenuBarIcon")
         ),
         OnboardingPage(
-            title: "Snapping a Window",
-            description: "Snapping windows to zones is **quick and intuitive**.\n\n**1.** Hold your **Snap Key** (default: **Shift**) while dragging a window\n**2.** Your zones will appear on the screen\n**3.** Move your window over the desired zone\n**4.** Release to snap the window into place\n\n💡 **Tip:** You can also use **Snap with right click** (enabled default) to snap windows without holding the Snap Key.",
+            title: "吸附窗口",
+            description: "将窗口吸附到区域是**快速且直观**的。\n\n**1.** 拖动窗口时按住**吸附键**（默认：**Shift**）\n**2.** 您的区域将出现在屏幕上\n**3.** 将窗口移动到目标区域上方\n**4.** 释放即可将窗口吸附到位\n\n💡 **提示：**您也可以使用**右键点击吸附**（默认启用）来吸附窗口，无需按住吸附键。",
             video: "MacsyZones Onboarding Snap",
             icon: NSImage(systemSymbolName: "rectangle.on.rectangle.angled", accessibilityDescription: nil)
         ),
         OnboardingPage(
-            title: "Adding and Designing Layouts",
-            description: "Create **custom layouts** tailored to your needs.\n\n**1.** Click the **pencil icon** in the menu bar to enter edit mode\n**2.** Add zones by clicking the **+ button**\n**3.** Resize and position zones by **dragging their edges**\n**4.** Create new layouts for different workflows\n\n📝 **Note:** MacsyZones remembers your **preferred layout** for each screen and workspace combination. You can select which layout you want to prefer while you are on a screen and workspace.",
+            title: "添加和设计布局",
+            description: "创建适合您需求的**自定义布局**。\n\n**1.** 点击菜单栏中的**铅笔图标**进入编辑模式\n**2.** 点击 **+ 按钮**添加区域\n**3.** 通过**拖动边缘**调整区域大小和位置\n**4.** 为不同的工作流程创建新布局\n\n📝 **注意：**MacsyZones 会记住您为每个屏幕和工作区组合选择的**首选布局**。您可以在屏幕上选择首选布局。",
             video: "MacsyZones Onboarding Layout Editor",
             icon: NSImage(systemSymbolName: "square.grid.3x3", accessibilityDescription: nil)
         ),
         OnboardingPage(
-            title: "Shake to Snap",
-            description: "A **magical way** to snap windows with motion.\n\n**1.** Grab a window by clicking and holding its **title bar**\n**2.** Shake your mouse or trackpad **rapidly**\n**3.** Zones will appear automatically\n**4.** Move and release to snap\n\n⚡ **Tip:** Adjust **shake sensitivity** in settings to match your preference. This feature is perfect for **trackpad users**!",
+            title: "摇晃吸附",
+            description: "一种**神奇的方式**通过运动来吸附窗口。\n\n**1.** 点击并按住窗口的**标题栏**\n**2.** **快速**摇晃鼠标或触控板\n**3.** 区域将自动出现\n**4.** 移动并释放即可吸附\n\n⚡ **提示：**在设置中调整**摇晃灵敏度**以匹配您的偏好。此功能非常适合**触控板用户**！",
             video: "MacsyZones Onboarding Shake to Snap",
             icon: NSImage(systemSymbolName: "hand.raised.fill", accessibilityDescription: nil)
         ),
         OnboardingPage(
-            title: "Snap Resize",
-            description: "Resize windows **precisely** using zone edges.\n\n**1.** Move your mouse pointer to somewhere center of two zones' edges meet or hold your **Modifier Key** (default: **Control**) for a moment\n**2.** Snap resizers appear between zones\n**3.** Drag a window edge close to a snap resizer\n**4.** The edge snaps to the resizer for **perfect alignment**\n\n✨ **Feature:** Enable **'Show snap resizers on hover'** in settings for instant visibility without holding the Modifier Key.",
+            title: "吸附调整大小",
+            description: "使用区域边缘**精确**调整窗口大小。\n\n**1.** 将鼠标指针移动到两个区域边缘交汇处，或按住**修饰键**（默认：**Control**）片刻\n**2.** 吸附调整器将出现在区域之间\n**3.** 将窗口边缘拖动到吸附调整器附近\n**4.** 边缘将吸附到调整器以实现**完美对齐**\n\n✨ **功能：**在设置中启用**'悬停时显示吸附调整器'**，无需按住修饰键即可立即查看。",
             video: "MacsyZones Onboarding Snap Resize",
             icon: NSImage(systemSymbolName: "arrow.up.left.and.arrow.down.right", accessibilityDescription: nil)
         ),
         OnboardingPage(
-            title: "Quick Snapper",
-            description: "Quick Snapper is a **lightweight window management** tool that lets you snap windows to predefined zones using keyboard shortcuts.\n\n**1.** Use the **Quick Snap Shortcut** (default: **Control+Shift+S**) to toggle Quick Snapper mode\n**2.** Use arrow keys ↑ / ↓ to navigate between zones and ← / → navigate between layouts\n**3.** Press the zone number (1-9) to snap selected window to the zone\n4. Press Delete to **unsnap** selected window\n5. Press Enter to get it done\n\n🚀 **Efficiency:** Quick Snapper is designed for users who prefer **keyboard-centric workflows**, enabling rapid window management without leaving the keyboard. You can use it as snapper, layout switcher and quick window switcher.",
+            title: "快速吸附",
+            description: "快速吸附是一个**轻量级窗口管理**工具，让您使用键盘快捷键将窗口吸附到预定义区域。\n\n**1.** 使用**快速吸附快捷键**（默认：**Control+Shift+S**）切换快速吸附模式\n**2.** 使用方向键 ↑ / ↓ 在区域间导航，← / → 在布局间导航\n**3.** 按区域编号（1-9）将选定窗口吸附到该区域\n4. 按 Delete **取消吸附**选定窗口\n5. 按 Enter 完成操作\n\n🚀 **效率：**快速吸附专为偏好**键盘中心工作流程**的用户设计，无需离开键盘即可快速管理窗口。您可以用它作为吸附器、布局切换器和快速窗口切换器。",
             video: "MacsyZones Onboarding Quick Snapper",
             icon: NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: nil)
         )
