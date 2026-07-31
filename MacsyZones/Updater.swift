@@ -11,41 +11,94 @@
 //
 
 import Foundation
+import AppKit
 
 class AppUpdater: ObservableObject {
     @Published var isChecking = false
     @Published var isUpdatable: Bool?
     @Published var isDownloading = false
+    @Published var isDownloaded = false
+    @Published var downloadFailed = false
 
     @Published var latestVersion: String?
 
     let updater = GitHubUpdater()
+    var downloadedDmgPath: URL?
 
-    func checkForUpdates(download: Bool = false) {
+    func autoCheckAndDownload() {
+        guard !isDownloading, !isDownloaded else { return }
+        checkAndDownload()
+    }
+
+    func userTriggerUpdate() {
+        if isDownloaded {
+            installUpdate()
+        } else if !isDownloading {
+            checkAndDownload()
+        }
+    }
+
+    private func checkAndDownload() {
         Task { @MainActor in
             self.isChecking = true
+            self.downloadFailed = false
         }
 
         updater.checkForUpdates { version in
-            guard let version = version else {
-                Task { @MainActor in
-                    self.isChecking = false
-                    self.isDownloading = false
-                    self.isUpdatable = false
-                }
-                return
-            }
-
             Task { @MainActor in
+                guard let version = version else {
+                    self.isChecking = false
+                    self.isUpdatable = false
+                    return
+                }
                 self.latestVersion = version
-                self.isChecking = false
                 self.isUpdatable = true
+                self.isChecking = false
                 self.isDownloading = true
             }
-        } onDownloaded: { success in
+        } onDownloaded: { success, dmgPath in
             Task { @MainActor in
-                self.isChecking = false
                 self.isDownloading = false
+                if success, let dmgPath = dmgPath {
+                    self.isDownloaded = true
+                    self.downloadedDmgPath = dmgPath
+                    self.showUpdateReadyAlert()
+                } else {
+                    self.downloadFailed = true
+                }
+            }
+        }
+    }
+
+    func showUpdateReadyAlert() {
+        let alert = NSAlert()
+        alert.window.level = .floating
+        alert.alertStyle = .informational
+        alert.messageText = "MacsyZones"
+        alert.informativeText = "更新已下载完成。点击确定重启并安装更新。"
+        alert.addButton(withTitle: "确定")
+        alert.addButton(withTitle: "取消")
+
+        alert.window.makeKeyAndOrderFront(nil)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            installUpdate()
+        }
+    }
+
+    func installUpdate() {
+        guard let dmgPath = downloadedDmgPath else { return }
+
+        updater.installDmg(from: dmgPath) { success in
+            DispatchQueue.main.async {
+                if success {
+                    restartApp()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        NSApp.terminate(nil)
+                    }
+                }
             }
         }
     }
@@ -54,12 +107,12 @@ class AppUpdater: ObservableObject {
 func isVersionGreater(_ version: String, than otherVersion: String) -> Bool {
     let cleanVersion = version.hasPrefix("v") ? String(version.dropFirst()) : version
     let cleanOtherVersion = otherVersion.hasPrefix("v") ? String(otherVersion.dropFirst()) : otherVersion
-    
+
     let versionComponents = cleanVersion.split(separator: ".")
     let otherVersionComponents = cleanOtherVersion.split(separator: ".")
-    
+
     let minComponents = min(versionComponents.count, otherVersionComponents.count)
-    
+
     for i in 0..<minComponents {
         guard let vNum = Int(versionComponents[i]), let otherNum = Int(otherVersionComponents[i]) else {
             if versionComponents[i] > otherVersionComponents[i] {
@@ -69,14 +122,14 @@ func isVersionGreater(_ version: String, than otherVersion: String) -> Bool {
             }
             continue
         }
-        
+
         if vNum > otherNum {
             return true
         } else if vNum < otherNum {
             return false
         }
     }
-    
+
     return versionComponents.count > otherVersionComponents.count
 }
 
@@ -148,7 +201,7 @@ class GitHubUpdater {
     let applicationsDirectory = NSSearchPathForDirectoriesInDomains(.applicationDirectory, .userDomainMask, true).first!
     let appName = "MacsyZones"
 
-    func checkForUpdates(onChecked: ((String?) -> Void)? = nil, onDownloaded: ((Bool) -> Void)? = nil) {
+    func checkForUpdates(onChecked: ((String?) -> Void)? = nil, onDownloaded: ((Bool, URL?) -> Void)? = nil) {
         githubAPI.checkLatestRelease { [self] latestRelease in
             guard let latestRelease else {
                 onChecked?(nil)
@@ -157,16 +210,16 @@ class GitHubUpdater {
 
             onChecked?(latestRelease.version)
 
-            self.downloadDmg(from: latestRelease.url, version: latestRelease.version) { success in
-                onDownloaded?(success)
+            self.downloadDmg(from: latestRelease.url, version: latestRelease.version) { success, dmgPath in
+                onDownloaded?(success, dmgPath)
             }
         }
     }
 
-    func downloadDmg(from url: URL, version: String, onCompleted: ((Bool) -> Void)? = nil) {
+    func downloadDmg(from url: URL, version: String, onCompleted: ((Bool, URL?) -> Void)? = nil) {
         debugLog("[Updater] 开始下载: \(url)")
 
-        downloadFile(from: url) { [self] tmpPath in
+        downloadFile(from: url) { tmpPath in
             if let tmpPath = tmpPath {
                 debugLog("[Updater] 下载完成: \(tmpPath)")
             } else {
@@ -174,17 +227,15 @@ class GitHubUpdater {
             }
 
             guard let tmpPath = tmpPath else {
-                onCompleted?(false)
+                onCompleted?(false, nil)
                 return
             }
 
-            onCompleted?(true)
-
-            self.installDmg(from: tmpPath)
+            onCompleted?(true, tmpPath)
         }
     }
 
-    private func installDmg(from dmgURL: URL) {
+    func installDmg(from dmgURL: URL, onInstalled: @escaping (Bool) -> Void) {
         debugLog("[Updater] 开始安装 DMG: \(dmgURL)")
 
         let fileManager = FileManager.default
@@ -214,6 +265,7 @@ class GitHubUpdater {
             guard hdiutilAttach.terminationStatus == 0 else {
                 debugLog("[Updater] 挂载 DMG 失败")
                 try? fileManager.removeItem(at: tempDirectory)
+                onInstalled(false)
                 return
             }
 
@@ -234,6 +286,7 @@ class GitHubUpdater {
                 try? hdiutilDetach.run()
                 hdiutilDetach.waitUntilExit()
                 try? fileManager.removeItem(at: tempDirectory)
+                onInstalled(false)
                 return
             }
 
@@ -251,6 +304,7 @@ class GitHubUpdater {
                 try? hdiutilDetach.run()
                 hdiutilDetach.waitUntilExit()
                 try? fileManager.removeItem(at: tempDirectory)
+                onInstalled(false)
                 return
             }
 
@@ -298,25 +352,7 @@ class GitHubUpdater {
             updateProcess.arguments = ["-c", "nohup \"\(scriptURL.path)\" > /dev/null 2>&1 &"]
             try updateProcess.run()
 
-            DispatchQueue.main.async {
-                let alert = NSAlert()
-                alert.window.level = .floating
-                alert.alertStyle = .informational
-                alert.messageText = "MacsyZones"
-                alert.informativeText = "更新即将开始。应用将自动重启。"
-                alert.addButton(withTitle: "好的")
-
-                alert.window.makeKeyAndOrderFront(nil)
-                NSApplication.shared.activate(ignoringOtherApps: true)
-
-                alert.runModal()
-
-                restartApp()
-
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    NSApp.terminate(nil)
-                }
-            }
+            onInstalled(true)
         } catch {
             debugLog("Update error: \(error.localizedDescription)")
             // 卸载 dmg
@@ -326,6 +362,7 @@ class GitHubUpdater {
             try? hdiutilDetach.run()
             hdiutilDetach.waitUntilExit()
             try? fileManager.removeItem(at: tempDirectory)
+            onInstalled(false)
         }
     }
 }

@@ -256,22 +256,24 @@ codesign -dv --verbose=4 build/Build/Products/Release/MacsyZones.app 2>&1 | grep
 - `Identifier=MeowingCat.MacsyZones`
 - `Authority=Apple Development: jie.zhengj@gmail.com (8SDSF987N2)`
 
-**步骤 4：创建 DMG**
+**步骤 4：创建 DMG（在临时目录）**
 ```bash
 mkdir -p /tmp/MacsyZones-dmg
 cp -R build/Build/Products/Release/MacsyZones.app /tmp/MacsyZones-dmg/
 ln -sf /Applications /tmp/MacsyZones-dmg/Applications
-hdiutil create -volname "MacsyZones" -srcfolder /tmp/MacsyZones-dmg -ov -format UDZO MacsyZones-vx.y.z.dmg
+hdiutil create -volname "MacsyZones" -srcfolder /tmp/MacsyZones-dmg -ov -format UDZO /tmp/MacsyZones-vx.y.z.dmg
 rm -rf /tmp/MacsyZones-dmg
 ```
 - DMG 文件名格式：`MacsyZones-vx.y.z.dmg`（如 `MacsyZones-v1.2.3.dmg`）
+- ⚠️ **DMG 必须创建在 `/tmp/` 目录，绝对不能放在项目文件夹里**
 
 **步骤 5：提交代码并推送**
 ```bash
-git add MacsyZones/SettingsView.swift MacsyZones.xcodeproj/project.pbxproj MacsyZones-vx.y.z.dmg
+git add MacsyZones.xcodeproj/project.pbxproj
 git commit -m "<提交信息>"
 git push origin custom
 ```
+- ⚠️ **绝对不要 `git add` DMG 文件**，DMG 不属于 Git 版本管理
 
 **步骤 6：创建 tag 并推送**
 ```bash
@@ -290,14 +292,18 @@ gh release create vx.y.z \
 "
 
 # 上传 DMG
-gh release upload vx.y.z MacsyZones-vx.y.z.dmg --repo jiezhengj/MacsyZones --clobber
+gh release upload vx.y.z /tmp/MacsyZones-vx.y.z.dmg --repo jiezhengj/MacsyZones --clobber
+
+# 上传完成后删除 DMG
+rm -f /tmp/MacsyZones-vx.y.z.dmg
 ```
 
-### DMG 文件必须纳入 Git 版本管理
+### DMG 文件规则
 
-- DMG 文件**必须** `git add` 并提交到仓库
-- 旧版本 DMG **必须** `git rm` 删除
-- 每次发布后，仓库中包含且仅包含当前版本的 DMG 文件
+- ⚠️ DMG 文件**绝对禁止**放在项目文件夹内
+- ⚠️ DMG 文件**绝对禁止**纳入 Git 版本管理
+- DMG 全程在 `/tmp/` 目录创建和使用
+- Release 上传完成后**必须立即删除**本地 DMG 文件
 
 ---
 
