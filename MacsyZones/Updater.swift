@@ -90,15 +90,29 @@ class GitHubAPI {
 
     func checkLatestRelease(onChecked: @escaping ((version: String, url: URL)?) -> Void) {
         let urlString = "https://api.github.com/repos/jiezhengj/MacsyZones/releases/latest"
+        debugLog("[Updater] 检查更新: \(urlString)")
+
         guard let url = URL(string: urlString) else {
+            debugLog("[Updater] 无效的 URL")
             onChecked(nil)
             return
         }
 
         let task = session.dataTask(with: url) { data, response, error in
-            guard let data = data, error == nil else {
+            if let error = error {
+                debugLog("[Updater] API 请求失败: \(error.localizedDescription)")
                 onChecked(nil)
                 return
+            }
+
+            guard let data = data else {
+                debugLog("[Updater] 没有收到数据")
+                onChecked(nil)
+                return
+            }
+
+            if let httpResponse = response as? HTTPURLResponse {
+                debugLog("[Updater] API 响应状态码: \(httpResponse.statusCode)")
             }
 
             do {
@@ -108,20 +122,23 @@ class GitHubAPI {
                    let downloadUrl = assets.first?["browser_download_url"] as? String
                 {
                     let version = tagName.replacingOccurrences(of: "v", with: "")
-                    let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as! String
+                    let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
                     let isGreater = isVersionGreater(version, than: appVersion)
-                    
+
+                    debugLog("[Updater] 最新版本: \(version), 当前版本: \(appVersion), 需要更新: \(isGreater)")
+                    debugLog("[Updater] 下载地址: \(downloadUrl)")
+
                     onChecked(isGreater ? (version: version, url: URL(string: downloadUrl)!): nil)
                 } else {
+                    debugLog("[Updater] 解析 JSON 失败")
                     onChecked(nil)
                 }
             } catch {
-                debugLog("Error parsing JSON:")
-                dump(error)
+                debugLog("[Updater] JSON 解析错误: \(error.localizedDescription)")
                 onChecked(nil)
             }
         }
-        
+
         task.resume()
     }
 }
@@ -148,11 +165,16 @@ class GitHubUpdater {
     }
 
     private func downloadDmg(from url: URL, version: String, onCompleted: ((Bool) -> Void)? = nil) {
-        let destination = URL(fileURLWithPath: "\(NSTemporaryDirectory())\(appName).dmg")
+        debugLog("[Updater] 开始下载: \(url)")
 
-        downloadFile(from: url, to: destination) { [self] tmpPath in
+        downloadFile(from: url) { [self] tmpPath in
+            if let tmpPath = tmpPath {
+                debugLog("[Updater] 下载完成: \(tmpPath)")
+            } else {
+                debugLog("[Updater] 下载失败")
+            }
+
             guard let tmpPath = tmpPath else {
-                debugLog("Error downloading update!")
                 onCompleted?(false)
                 return
             }
@@ -164,32 +186,48 @@ class GitHubUpdater {
     }
 
     private func installDmg(from dmgURL: URL) {
+        debugLog("[Updater] 开始安装 DMG: \(dmgURL)")
+
         let fileManager = FileManager.default
         let destinationFolder = getApplicationsPath()
         let destinationApp = destinationFolder.appendingPathComponent("MacsyZones.app")
         let tempDirectory = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let mountPoint = tempDirectory.appendingPathComponent("mount")
 
+        debugLog("[Updater] 目标路径: \(destinationApp)")
+        debugLog("[Updater] 临时目录: \(tempDirectory)")
+        debugLog("[Updater] 挂载点: \(mountPoint)")
+
         do {
             try fileManager.createDirectory(at: mountPoint, withIntermediateDirectories: true)
+            debugLog("[Updater] 创建临时目录成功")
 
             // 挂载 dmg
+            debugLog("[Updater] 挂载 DMG...")
             let hdiutilAttach = Process()
             hdiutilAttach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
             hdiutilAttach.arguments = ["attach", dmgURL.path, "-mountpoint", mountPoint.path, "-nobrowse", "-quiet"]
             try hdiutilAttach.run()
             hdiutilAttach.waitUntilExit()
 
+            debugLog("[Updater] hdiutil attach 退出状态: \(hdiutilAttach.terminationStatus)")
+
             guard hdiutilAttach.terminationStatus == 0 else {
-                debugLog("Error: Failed to mount DMG.")
+                debugLog("[Updater] 挂载 DMG 失败")
                 try? fileManager.removeItem(at: tempDirectory)
                 return
             }
 
             // 查找 app
             let extractedAppURL = mountPoint.appendingPathComponent("MacsyZones.app")
+            debugLog("[Updater] 查找 app: \(extractedAppURL)")
+
             guard fileManager.fileExists(atPath: extractedAppURL.path) else {
-                debugLog("Error: App not found in DMG.")
+                debugLog("[Updater] DMG 中没有找到 app")
+                // 列出挂载点内容
+                if let contents = try? fileManager.contentsOfDirectory(atPath: mountPoint.path) {
+                    debugLog("[Updater] 挂载点内容: \(contents)")
+                }
                 // 卸载 dmg
                 let hdiutilDetach = Process()
                 hdiutilDetach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
@@ -200,12 +238,14 @@ class GitHubUpdater {
                 return
             }
 
+            debugLog("[Updater] 找到 app")
+
             // 读取版本号
             let extractedInfoPlist = extractedAppURL.appendingPathComponent("Contents/Info.plist")
             guard let extractedPlistData = try? Data(contentsOf: extractedInfoPlist),
                   let extractedPlist = try? PropertyListSerialization.propertyList(from: extractedPlistData, options: [], format: nil) as? [String: Any],
                   let targetVersion = extractedPlist["CFBundleShortVersionString"] as? String else {
-                debugLog("Error: Could not read target version from extracted app.")
+                debugLog("[Updater] 无法读取目标版本号")
                 let hdiutilDetach = Process()
                 hdiutilDetach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
                 hdiutilDetach.arguments = ["detach", mountPoint.path, "-force"]
@@ -216,6 +256,7 @@ class GitHubUpdater {
             }
 
             let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+            debugLog("[Updater] 当前版本: \(currentVersion), 目标版本: \(targetVersion)")
 
             updateState.setUpdateAttempt(currentVersion: currentVersion, targetVersion: targetVersion)
 
@@ -290,13 +331,27 @@ class GitHubUpdater {
     }
 }
 
-func downloadFile(from url: URL, to destination: URL, onComplete: @escaping (URL?) -> Void) {
+func downloadFile(from url: URL, onComplete: @escaping (URL?) -> Void) {
+    debugLog("[Updater] 开始下载文件: \(url)")
+
     let task = URLSession.shared.downloadTask(with: url) { tempURL, response, error in
-        guard let tempURL = tempURL, error == nil else {
+        if let error = error {
+            debugLog("[Updater] 下载错误: \(error.localizedDescription)")
             onComplete(nil)
             return
         }
-        
+
+        if let httpResponse = response as? HTTPURLResponse {
+            debugLog("[Updater] 下载响应状态码: \(httpResponse.statusCode)")
+        }
+
+        guard let tempURL = tempURL else {
+            debugLog("[Updater] 下载失败: 没有临时文件")
+            onComplete(nil)
+            return
+        }
+
+        debugLog("[Updater] 下载成功，临时文件: \(tempURL)")
         onComplete(tempURL)
     }
     task.resume()
