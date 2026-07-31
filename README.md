@@ -4,6 +4,8 @@
 
 基于 [rohanrhu/MacsyZones](https://github.com/rohanrhu/MacsyZones) 二次开发的 macOS 窗口管理工具中文定制版。
 
+> ⚠️ **声明**：本项目仅为个人自用，不对外分发。
+
 > 🙏 感谢原作者 [Oğuzhan Eroğlu](https://meowingcat.io/) 的杰出工作！
 
 ## 改造内容
