@@ -26,8 +26,8 @@
 
 ### 当前签名证书
 ```
-Apple Development: jie.zhengj@gmail.com (8SDSF987N2)
-证书 ID: 5C25B3C1A1F756CA87992D7CB7A4D8024AC3403B
+Apple Development: jie.zhengj@qq.com (8SDSF987N2)
+证书 ID: C7C84AAA3B67FACEA73042570A0BA2FC3D19E613
 Team ID: 74FR87HYTH
 ```
 
@@ -37,8 +37,8 @@ Team ID: 74FR87HYTH
 
 ```
 CODE_SIGN_STYLE = Manual
-CODE_SIGN_IDENTITY = "Apple Development: jie.zhengj@gmail.com (8SDSF987N2)"
-CODE_SIGN_IDENTITY[sdk=macosx*] = "Apple Development: jie.zhengj@gmail.com (8SDSF987N2)"
+CODE_SIGN_IDENTITY = "Apple Development: jie.zhengj@qq.com (8SDSF987N2)"
+CODE_SIGN_IDENTITY[sdk=macosx*] = "Apple Development: jie.zhengj@qq.com (8SDSF987N2)"
 DEVELOPMENT_TEAM = 74FR87HYTH
 ```
 

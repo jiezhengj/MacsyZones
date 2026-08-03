@@ -136,6 +136,28 @@ class SpaceLayoutPreferences: UserData {
             debugLog("Error loading SpaceLayoutPreferences: \(error)")
         }
     }
+
+    // The standalone settings UI previously persisted the screen array index
+    // while runtime code persisted the macOS display ID. When only one screen
+    // remains, screen 0 is unambiguously the legacy entry for that screen.
+    func migrateLegacyScreenIndexPreferencesIfNeeded() {
+        guard NSScreen.screens.count == 1,
+              let screen = NSScreen.screens.first,
+              let screenNumber = getScreenNumber(screen: screen),
+              screenNumber != 0 else { return }
+
+        let legacyEntries = spaces.filter { $0.key.screen == 0 }
+        guard !legacyEntries.isEmpty else { return }
+
+        for (legacyPair, layoutName) in legacyEntries {
+            let migratedPair = ScreenSpacePair(screen: screenNumber, space: legacyPair.space)
+            spaces[migratedPair] = layoutName
+            spaces.removeValue(forKey: legacyPair)
+        }
+
+        save()
+        debugLog("Migrated legacy screen-index layout preferences to display ID \(screenNumber)")
+    }
     
     func switchToCurrent() {
         if let layoutName = self.getCurrent() {
@@ -152,6 +174,8 @@ class SpaceLayoutPreferences: UserData {
     }
     
     func startObserving() {
+        migrateLegacyScreenIndexPreferencesIfNeeded()
+
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.activeSpaceDidChangeNotification,
             object: nil,

@@ -17,7 +17,17 @@ func getFocusedScreen() -> NSScreen? {
         lastFocusedScreen = screen
         return screen
     }
-    return lastFocusedScreen
+
+    // A display can be disconnected while it is the last focused screen.
+    // Never return a stale NSScreen object that is no longer available.
+    if let previousScreen = lastFocusedScreen,
+       NSScreen.screens.contains(where: { $0 == previousScreen }) {
+        return previousScreen
+    }
+
+    let fallbackScreen = NSScreen.main ?? NSScreen.screens.first
+    lastFocusedScreen = fallbackScreen
+    return fallbackScreen
 }
 
 func getScreenNumber(screen: NSScreen) -> Int? {
