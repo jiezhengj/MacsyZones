@@ -84,7 +84,11 @@ class SettingsState: ObservableObject {
     func refreshScreens() {
         availableScreens = NSScreen.screens.enumerated().map { index, screen in
             let name = screen.localizedName.isEmpty ? "显示器 \(index + 1)" : screen.localizedName
-            return ScreenInfo(id: index, name: name, screen: screen)
+            // The ID must match the identifier used by SpaceLayoutPreferences
+            // and the runtime screen lookup. The array index is only a UI
+            // position and changes when displays are connected or removed.
+            let screenNumber = getScreenNumber(screen: screen) ?? index
+            return ScreenInfo(id: screenNumber, name: name, screen: screen)
         }
 
         // Ensure selectedScreenIndex is valid

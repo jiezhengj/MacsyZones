@@ -254,7 +254,7 @@ codesign -dv --verbose=4 build/Build/Products/Release/MacsyZones.app 2>&1 | grep
 必须确认：
 - `Signature=Apple Development`
 - `Identifier=MeowingCat.MacsyZones`
-- `Authority=Apple Development: jie.zhengj@gmail.com (8SDSF987N2)`
+- `Authority=Apple Development: jie.zhengj@qq.com (8SDSF987N2)`
 
 **步骤 4：创建 DMG（在临时目录）**
 ```bash
