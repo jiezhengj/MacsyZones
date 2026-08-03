@@ -14,6 +14,17 @@
 3. 上游仓库仅用于拉取更新，是单向同步关系
 4. **代码复用优先**：添加或修改功能时，必须先检查上游项目是否已有实现
 
+### 长期有效文档的权威层级
+
+- `AGENTS.md`：Agent 的工作范围、代码复用、测试和发布执行约束。
+- `VERSIONING.md`：版本级别判定、版本递增算法和发布/资产修复边界。
+- `RELEASES.md`：本项目自己的已发布版本、上游基线和下一发布目标。
+- `BUILD.md`：签名、构建、DMG 和 GitHub Release 的操作细节。
+- `README.md`：面向用户的功能和版本说明。
+- `CLAUDE.md`：只保留入口说明，不能复制一份独立版本规则。
+
+阶段性设计和实施过程文档已删除；它们不是版本号、Goal 状态或 Release 规则的依据。
+
 ---
 
 ## 代码复用原则
@@ -81,8 +92,10 @@ git show upstream/main:MacsyZones/<文件名>.swift | grep -A <行数> "<关键�
 
 1. **语法检查**：
    ```bash
-   xcodebuild -project MacsyZones.xcodeproj -scheme MacsyZones -configuration Debug build 2>&1 | tail -20
+   scripts/build-debug.sh
    ```
+
+   该脚本固定使用 `Apple Development: jie.zhengj@qq.com (8SDSF987N2)`、Team ID `74FR87HYTH` 和 Bundle ID `MeowingCat.MacsyZones`，并在构建后执行签名审计。权限测试不得使用临时 Bundle ID 或 UI Harness。
 
 2. **代码逻辑验证**：
    - 检查视图绑定是否正确（`@Binding`、`@State`、`@ObservedObject`）
@@ -99,9 +112,12 @@ git show upstream/main:MacsyZones/<文件名>.swift | grep -A <行数> "<关键�
 
 1. **运行应用并检查日志**：
    ```bash
-   # 运行应用并查看输出
-   /path/to/MacsyZones.app/Contents/MacOS/MacsyZones 2>&1
+   # 仅运行已通过正式签名审计的安装版本
+   scripts/verify-signing.sh /Applications/MacsyZones.app
+   /Applications/MacsyZones.app/Contents/MacOS/MacsyZones 2>&1
    ```
+
+   不要直接运行临时目录中的 UI Harness 或自定义 Bundle ID 构建；macOS 会把它们当作新的辅助功能 TCC 客户端，导致重复授权提示。
 
 2. **检查控制台输出**：
    - 是否有运行时错误
@@ -141,59 +157,21 @@ git show upstream/main:MacsyZones/<文件名>.swift | grep -A <行数> "<关键�
 
 ## 版本号规则
 
-### 独立版本号体系
+版本号规则、Major/Minor/Patch 的量化判定和本项目当前版本台账统一见 [`VERSIONING.md`](VERSIONING.md) 与 [`RELEASES.md`](RELEASES.md)。
 
-**重要**：本项目作为 fork，**不继承上游项目的版本号**，而是从 **v1.0.0** 开始独立演进。
+必须遵守以下硬规则：
 
-### 语义化版本（Semantic Versioning）
+1. 版本级别按完整 Goal/发布范围判定，不按最后一个 commit 判定。
+2. 多种变更同时存在时采用最高级别：`Major > Minor > Patch`。
+3. 跨越两个以上核心域并重构职责边界、持久化迁移、核心 UI、更新器或签名发布边界时，至少是 Major。
+4. 回滚后的稳定代码只保留版本门禁、正式签名和可重复 DMG 构建改进，当前已发布版本是 `v1.2.5`，下一发布目标是 `v1.2.6 / Patch`；新架构和 UI 改造不得进入后续版本。
+5. 修改 `MARKETING_VERSION` 后，必须先执行：
 
-版本号格式：**x.y.z**（例如 1.2.3）
+   ```bash
+   scripts/check-version.sh <target-version> <major|minor|patch>
+   ```
 
-| 版本号 | 含义 | 何时递增 | 示例 |
-|--------|------|----------|------|
-| **x** (Major) | 主版本号 | 重大更新、不兼容的 API 变更、架构重构 | 1.0.0 → 2.0.0 |
-| **y** (Minor) | 次版本号 | 新功能添加（向后兼容） | 1.0.0 → 1.1.0 |
-| **z** (Patch) | 补丁号 | Bug 修复、小改进（向后兼容） | 1.0.0 → 1.0.1 |
-
-### 递增规则
-
-1. **主版本号 (x)**
-   - 重大架构变更
-   - 不兼容的 API 变更
-   - 大规模功能重写
-   - 重大的 UI 设计变更
-
-2. **次版本号 (y)**
-   - 新增功能
-   - 新增 UI 组件
-   - 性能优化
-   - 新的配置选项
-
-3. **补丁号 (z)**
-   - Bug 修复
-   - 文档更新
-   - 小的 UI 调整
-   - 代码重构（不影响功能）
-
-### 本项目的版本号示例
-
-```
-1.0.0 → 1.0.1：修复了一个 bug
-1.0.1 → 1.1.0：添加了新功能（如快捷键自定义）
-1.1.0 → 2.0.0：重大架构变更（如从 SwiftUI 迁移到 AppKit）
-```
-
-### 上游版本号映射
-
-本项目需要记录与上游版本号的对应关系，便于同步更新时参考：
-
-| 本项目版本 | 上游版本 | 说明 |
-|------------|----------|------|
-| v1.0.0 | v3.0.4 | 初始版本，基于上游 v3.0.4 改造 |
-
-**映射记录原则**：
-- 每次从上游同步更新后，在上表中记录新的映射关系
-- 便于追踪上游版本变化和改造基础
+6. 版本检查未通过时，不得构建 Release、创建 tag 或上传 GitHub Release。
 
 ---
 
@@ -249,39 +227,48 @@ git show upstream/main:MacsyZones/<文件名>.swift | grep -A <行数> "<关键�
 
 **每次发布 Release 必须执行以下全部步骤**，不可跳过：
 
-**步骤 1：更新版本号**
+**步骤 1：登记版本决策并更新版本号**
+
+先在 [`RELEASES.md`](RELEASES.md) 登记下一发布目标和级别，再更新 Xcode 项目版本号。当前回滚后的发布目标是 `v1.2.6 / Patch`。
+
 ```bash
-sed -i '' 's/MARKETING_VERSION = .*/MARKETING_VERSION = x.y.z;/g' MacsyZones.xcodeproj/project.pbxproj
+targetVersion=1.2.6
+bumpLevel=patch
+sed -i '' "s/MARKETING_VERSION = .*/MARKETING_VERSION = ${targetVersion};/g" MacsyZones.xcodeproj/project.pbxproj
+scripts/check-version.sh "$targetVersion" "$bumpLevel"
 ```
 
 **步骤 2：构建 Release 版本**
 ```bash
-xcodebuild -project MacsyZones.xcodeproj -scheme MacsyZones -configuration Release -derivedDataPath build clean build
+scripts/build-release-dmg.sh "$targetVersion" "$bumpLevel"
 ```
 
 **步骤 3：验证签名**
 ```bash
-codesign -dv --verbose=4 build/Build/Products/Release/MacsyZones.app 2>&1 | grep -E "CDHash|Signature|Identifier|Authority"
+# build-release-dmg.sh 已在创建 DMG 前自动完成正式签名审计。
+# 如需复核已安装版本：
+bash scripts/verify-signing.sh /Applications/MacsyZones.app
 ```
 必须确认：
-- `Signature=Apple Development`
-- `Identifier=MeowingCat.MacsyZones`
 - `Authority=Apple Development: jie.zhengj@qq.com (8SDSF987N2)`
+- 证书 SHA-1=`C7C84AAA3B67FACEA73042570A0BA2FC3D19E613`
+- `Identifier=MeowingCat.MacsyZones`
+- `TeamIdentifier=74FR87HYTH`
 
-**步骤 4：创建 DMG（在临时目录）**
+注：Xcode 27 的 `codesign -dv --verbose=4` 可能不再输出单独的 `Signature=Apple Development` 行，以完整的 `Authority`、`Identifier` 和 `TeamIdentifier` 为准。
+
+**步骤 4：验证 DMG（在临时目录）**
 ```bash
-mkdir -p /tmp/MacsyZones-dmg
-cp -R build/Build/Products/Release/MacsyZones.app /tmp/MacsyZones-dmg/
-ln -sf /Applications /tmp/MacsyZones-dmg/Applications
-hdiutil create -volname "MacsyZones" -srcfolder /tmp/MacsyZones-dmg -ov -format UDZO /tmp/MacsyZones-vx.y.z.dmg
-rm -rf /tmp/MacsyZones-dmg
+hdiutil verify /tmp/MacsyZones-vx.y.z.dmg
 ```
+
+`scripts/build-release-dmg.sh` 已在 `/tmp` 中完成 App 签名审计、DMG 创建和镜像信息校验。
 - DMG 文件名格式：`MacsyZones-vx.y.z.dmg`（如 `MacsyZones-v1.2.3.dmg`）
 - ⚠️ **DMG 必须创建在 `/tmp/` 目录，绝对不能放在项目文件夹里**
 
-**步骤 5：提交代码并推送**
+**步骤 5：提交代码并推送 `custom`**
 ```bash
-git add MacsyZones.xcodeproj/project.pbxproj
+git add <source-files> MacsyZones.xcodeproj/project.pbxproj RELEASES.md
 git commit -m "<提交信息>"
 git push origin custom
 ```
@@ -296,19 +283,25 @@ git push origin vx.y.z
 **步骤 7：创建 GitHub Release 并上传 DMG**
 ```bash
 # 创建 release
-gh release create vx.y.z \
+gh release create "v${targetVersion}" \
   --repo jiezhengj/MacsyZones \
-  --title "MacsyZones 中文定制版 vx.y.z" \
-  --notes "## vx.y.z 更新内容
+  --title "MacsyZones 中文定制版 v${targetVersion}" \
+  --notes "## v${targetVersion} 更新内容
 ...
 "
 
 # 上传 DMG
-gh release upload vx.y.z /tmp/MacsyZones-vx.y.z.dmg --repo jiezhengj/MacsyZones --clobber
+gh release upload "v${targetVersion}" "/tmp/MacsyZones-v${targetVersion}.dmg" --repo jiezhengj/MacsyZones --clobber
 
 # 上传完成后删除 DMG
-rm -f /tmp/MacsyZones-vx.y.z.dmg
+rm -f "/tmp/MacsyZones-v${targetVersion}.dmg"
 ```
+
+**步骤 8：发布后更新台账**
+
+确认 GitHub Release 页面和 DMG 下载成功后，将 `RELEASES.md` 中的版本状态改为“已发布”，更新“当前已发布版本”，再提交并推送该文档变更。未创建 GitHub Release 的版本不得写入“已发布”。
+
+如果 GitHub CLI 未登录、token 失效或 Release 资产无法验证，必须停止发布并报告阻塞，不能把本地 DMG 或 tag 当成已完成 Release。
 
 ### DMG 文件规则
 
@@ -321,23 +314,14 @@ rm -f /tmp/MacsyZones-vx.y.z.dmg
 
 ## 版本号管理
 
-### 重要：构建前必须更新版本号
+`MARKETING_VERSION` 是 App 版本唯一构建来源；关于界面从 `Info.plist` 自动读取，不需要单独修改。
 
-**问题**：Xcode 项目中的 `MARKETING_VERSION` 默认是 `1.0`，如果不手动更新，每次构建出来的 app 版本号都是 `1.0`，导致更新功能陷入无限循环。
+不要把“当前项目版本”“最近已发布版本”和“上游版本”混为一谈：
 
-**解决**：每次发布新版本前，必须更新以下位置的版本号：
-
-1. **Xcode 项目**：`MacsyZones.xcodeproj/project.pbxproj` 中的 `MARKETING_VERSION`
-
-```bash
-# 查看当前版本
-grep "MARKETING_VERSION" MacsyZones.xcodeproj/project.pbxproj
-
-# 更新版本号（替换 x.y.z 为新版本）
-sed -i '' 's/MARKETING_VERSION = .*/MARKETING_VERSION = x.y.z;/g' MacsyZones.xcodeproj/project.pbxproj
-```
-
-2. **关于界面**：版本号会自动从 Info.plist 读取，无需手动更新
+- 当前项目构建版本：以 `project.pbxproj` 为准。
+- 最近已发布版本和下一发布目标：以 `RELEASES.md` 为准。
+- 上游基线：只记录用于同步的上游版本，不参与本项目递增计算。
+- 任何新代码 Release 都必须通过 `scripts/check-version.sh`；资产修复例外仅适用于同一代码、同一 tag 的 DMG 替换。
 
 ---
 
