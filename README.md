@@ -8,7 +8,13 @@
 
 > 🙏 感谢原作者 [Oğuzhan Eroğlu](https://meowingcat.io/) 的杰出工作！
 
-## 版本映射
+## 版本与发布
+
+当前已发布版本：`v1.2.5`
+
+下一发布目标：`v1.2.6`（Patch）
+
+完整版本台账见 [`RELEASES.md`](RELEASES.md)，版本判定规则见 [`VERSIONING.md`](VERSIONING.md)。本项目版本与上游版本独立演进；仓库中继承的上游 tags 不代表本项目版本。
 
 | 本项目版本 | 上游版本 | 说明 |
 |-----------|---------|------|
@@ -19,6 +25,7 @@
 | v1.2.2 | v3.0.4 | 关于界面优化，新增版本号显示 |
 | v1.2.3 | v3.0.4 | 修复设置界面所有帮助按钮无反应问题 |
 | v1.2.4 | v3.0.4 | 改进更新体验：下载状态可视化管理 |
+`v1.2.6` 是回滚新架构后，保留版本门禁、正式签名和可重复 DMG 构建改进的下一发布目标。
 
 ## 改造内容
 
@@ -48,6 +55,8 @@ cd MacsyZones
 open MacsyZones.xcodeproj
 # Cmd + R 运行，或 Product → Archive 打包
 ```
+
+正式签名、版本检查、DMG 构建和 GitHub Release 流程见 [`BUILD.md`](BUILD.md)。
 
 ## 许可证
 
