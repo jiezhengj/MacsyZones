@@ -6,7 +6,7 @@
 
 ### 任务 T001：升级工程部署目标至 macOS 27.0 并注册新文件引用
 
-- [ ] T001 升级工程部署目标至 macOS 27.0 并注册新文件引用
+- [x] T001 升级工程部署目标至 macOS 27.0 并注册新文件引用
 
 - **单项可观察目标**：在 Xcode 工程文件 `MacsyZones.xcodeproj/project.pbxproj` 中将所有编译配置的 `MACOSX_DEPLOYMENT_TARGET` 统一设置为 `27.0`，并在工程中正确注册新增源码文件 `MacsyZones/DragSessionState.swift`。
 - **溯源关联**：FR-001、SC-007、Upstream macOS 27 Baseline。
@@ -37,7 +37,7 @@
 
 ### 任务 T002：消除历史系统可用性宏分支与屏幕索引降级
 
-- [ ] T002 消除历史系统可用性宏分支与屏幕索引降级
+- [x] T002 消除历史系统可用性宏分支与屏幕索引降级
 
 - **单项可观察目标**：彻底删除 `Screen.swift`、`Preferences.swift` 与 `Settings.swift` 中所有的历史可用性宏（如 `#available(macOS 12.0, *)`、`#available(macOS 13.0, *)`、`#available(macOS 26.0, *)`），并将 `Screen.swift` 中的屏幕识别完全固化为 `screen.cgDirectDisplayID`。
 - **溯源关联**：FR-001、SC-007、Upstream macOS 27 Modernization。
@@ -70,7 +70,7 @@
 
 ### 任务 T003：消除启动阶段双重布局加载
 
-- [ ] T003 消除启动阶段双重布局加载（溯源 PR #104）
+- [x] T003 消除启动阶段双重布局加载（溯源 PR #104）
 
 - **单项可观察目标**：在 `MacsyZones/App.swift` 中删除 `applicationDidFinishLaunching` 内部第二处无条件调用 `userLayouts.load()`，避免开机重复构建两套 AppKit 窗口图形树。
 - **溯源关联**：FR-006、SC-003、Upstream PR #104（Commit `4af86df75102cacc258dbb1eaa878a6c74ccf533`，作者：eafire15）。
@@ -100,7 +100,7 @@
 
 ### 任务 T004：实现 UserLayout 布局窗口惰性物化（Lazy Materialization）
 
-- [ ] T004 实现 UserLayout 布局窗口惰性物化（溯源 PR #106）
+- [x] T004 实现 UserLayout 布局窗口惰性物化（溯源 PR #106）
 
 - **单项可观察目标**：重构 `UserData.swift` 中的 `UserLayout` 类，将 `layoutWindow` 改造为按需延迟实例化的计算属性，并在 `Macsy.swift` 隐藏与重置时加入守卫，使冷启动物理内存降至 30MB 以内。
 - **溯源关联**：FR-007、SC-003、Upstream PR #106（Commit `0fd5d926a8e661251f55867cf40bac717743ed55` 等，作者：eafire15）。
@@ -136,7 +136,7 @@
 
 ### 任务 T005：实现 QuickSnapper 关闭资源彻底解构与世代代号保护
 
-- [ ] T005 实现 QuickSnapper 关闭资源彻底解构与世代代号保护（溯源 PR #107）
+- [x] T005 实现 QuickSnapper 关闭资源彻底解构与世代代号保护（溯源 PR #107）
 
 - **单项可观察目标**：在 `MacsyZones/QuickSnapper.swift` 中实现关闭淡出完成后释放窗口列表与 HostingView，引入 `lifecycleGeneration` 防范异步动画竞态，并将状态与热键调度约束至 `@MainActor`。
 - **溯源关联**：FR-008、SC-003、Upstream PR #107（Commit `501c92f3cba4b0c561558d051c1faef85d2bcb29`、`69f1019032cf5e30ae16f4e934ee49393e8903f0`，作者：eafire15）。
@@ -168,7 +168,7 @@
 
 ### 任务 T006：创建纯 Swift 拖拽会话状态机 DragSessionState
 
-- [ ] T006 创建纯 Swift 拖拽会话状态机 DragSessionState（溯源 PR #102）
+- [x] T006 创建纯 Swift 拖拽会话状态机 DragSessionState（溯源 PR #102）
 
 - **单项可观察目标**：在 `MacsyZones/DragSessionState.swift` 中实现完全解耦、确定的拖拽状态机模型，统一处理修饰键与拖拽先后时序，管理窗口归属锁与物理修饰键独立保留。
 - **溯源关联**：FR-002、SC-001、SC-002、Upstream PR #102（Commit `ec28f8f8ee4b570d8af442b32c26d8bd485b7b19`，作者：daniellavallee）。
@@ -199,7 +199,7 @@
 
 ### 任务 T007：重构 WindowObserverManager 辅助功能观察器引擎
 
-- [ ] T007 重构 WindowObserverManager 辅助功能观察器引擎（溯源 PR #102）
+- [x] T007 重构 WindowObserverManager 辅助功能观察器引擎（溯源 PR #102）
 
 - **单项可观察目标**：重构 `App.swift` 中的 `WindowObserverManager`，仅在 AX 注册成功后记录窗口，引入指数退避重试（+0.2s, +0.5s, +1.0s），接入 `didActivateApplicationNotification` 增量对账，并清理退出事件。
 - **溯源关联**：FR-003、FR-004、FR-014、SC-001、Upstream PR #102（Commit `ec28f8f8ee4b570d8af442b32c26d8bd485b7b19`，作者：daniellavallee）。
@@ -232,7 +232,7 @@
 
 ### 任务 T008：激活物理鼠标位移兜底与遮罩层 Space 跨越增强
 
-- [ ] T008 激活物理鼠标位移兜底与遮罩层 Space 跨越增强（溯源 PR #102）
+- [x] T008 激活物理鼠标位移兜底与遮罩层 Space 跨越增强（溯源 PR #102）
 
 - **单项可观察目标**：在 `MacsyZones/Macsy.swift` 的 `onMouseDragged` 中实现光标位移 > 5pt 的主动吸附兜底；将所有遮罩窗口的 `collectionBehavior` 设置为 `[.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]`；在 `Preferences.swift` 中实现基于显示器 UUID 的独立 Space 偏好解析。
 - **溯源关联**：FR-005、SC-001、SC-002、Upstream PR #102（Commit `ec28f8f8ee4b570d8af442b32c26d8bd485b7b19`，作者：daniellavallee）。
@@ -266,7 +266,7 @@
 
 ### 任务 T009：修复 UserData.reArrange() 强制解包崩溃
 
-- [ ] T009 修复 UserData.reArrange() 强制解包崩溃（溯源 PR #86）
+- [x] T009 修复 UserData.reArrange() 强制解包崩溃（溯源 PR #86）
 
 - **单项可观察目标**：在 `MacsyZones/UserData.swift` 的 `reArrange()` 中，彻底消除 `$0.number!` 与 `.first(where:)!` 的强制解包，使用安全排序与 `guard let` 忽略脏数据，杜绝保存布局时的闪退。
 - **溯源关联**：FR-009、SC-005、Upstream PR #86（Commit `795e46978602dab707b9207176bf8f222943e9c9`，作者：haylax）。
@@ -303,7 +303,7 @@
 
 ### 任务 T010：加固 AppKit 约束重入防护与 NSHostingView 尺寸声明
 
-- [ ] T010 加固 AppKit 约束重入防护与 NSHostingView 尺寸声明（溯源 PR #79）
+- [x] T010 加固 AppKit 约束重入防护与 NSHostingView 尺寸声明（溯源 PR #79）
 
 - **单项可观察目标**：在 `MacsyZones/Layout.swift`、`MacsyZones/LiquidGlass.swift` 与 `MacsyZones/Macsy.swift` 中，为所有固定尺寸 `NSHostingView` 设置 `sizingOptions = []`；在窗口代理中通过 `DispatchQueue.main.async` 派发 `@Published` 变更；在 `LiquidGlassView` 中守卫 KVC 写入，杜绝 macOS 27 下的 `SIGTRAP / EXC_BREAKPOINT` 崩溃。
 - **溯源关联**：FR-010、FR-011、SC-004、Upstream PR #79（Commit `c66f06ac789ccc72d8c55a7d3eaeff50b54ce586`，作者：wylanswets）。
@@ -345,7 +345,7 @@
 
 ### 任务 T011：分区编辑器对齐工具栏 AlignmentPreset
 
-- [ ] T011 分区编辑器对齐工具栏 AlignmentPreset（溯源 PR #86）
+- [x] T011 分区编辑器对齐工具栏 AlignmentPreset（溯源 PR #86）
 
 - **单项可观察目标**：在 `MacsyZones/Layout.swift` 中定义 `AlignmentPreset` 枚举与 6 个基于 SF Symbols 的对齐按钮，集成至 `EditorSectionView`，实现保持当前分区宽高不变的前提下快速将分区对齐至屏幕边缘或居中。
 - **溯源关联**：FR-012、SC-005、Upstream PR #86（Commit `bb77f61d002c25ec6342ce12b880935b689b97c9`，作者：haylax）。
@@ -375,7 +375,7 @@
 
 ### 任务 T012：拖拽自动吸附、多区联合吸附与粘性右键取消
 
-- [ ] T012 拖拽自动吸附、多区联合吸附与粘性右键取消（溯源 PR #86）
+- [x] T012 拖拽自动吸附、多区联合吸附与粘性右键取消（溯源 PR #86）
 
 - **单项可观察目标**：在 `Settings.swift` 与 `SettingsView.swift` 中增加 `snapWhileDragging`、`enableZoneSpanning`、`spanKey` 配置项及中文 UI；在 `Macsy.swift` 中实现多分区联合矩形吸附与粘性右键取消标志位。
 - **溯源关联**：FR-013、SC-006、Upstream PR #86（Commit `fbe6e28aa699b397ba9eb3b4c0afaf83e8c22d5f`，作者：haylax）。
@@ -416,7 +416,7 @@
 
 ### 任务 T013：登记发布目标并执行全量版本门禁与构建验证
 
-- [ ] T013 登记发布目标并执行全量版本门禁与构建验证
+- [x] T013 登记发布目标并执行全量版本门禁与构建验证
 
 - **单项可观察目标**：在 `RELEASES.md` 中登记发布目标为 `v2.0.0 / Major`，执行 `scripts/check-version.sh 2.0.0 major` 校验版本一致性，执行 `scripts/build-debug.sh` 验证编译与本地正式签名审计通过。
 - **溯源关联**：SC-007、项目版本与发布规范。
@@ -450,7 +450,7 @@
 
 ### 任务 T014：更新项目面向用户的说明文档 README.md
 
-- [ ] T014 更新项目面向用户的说明文档 README.md
+- [x] T014 更新项目面向用户的说明文档 README.md
 
 - **单项可观察目标**：在 `README.md` 中全面更新系统支持要求（macOS 27.0+），并撰写关于 Finder 冷启动修复、分区对齐工具栏、拖拽自动吸附和多区联合吸附的功能说明与最新发布指引。
 - **溯源关联**：FR-015、SC-008、项目文档规范。
@@ -481,7 +481,7 @@
 
 ### 任务 T015：提交全部代码与规范变更并推送到 GitHub custom 分支
 
-- [ ] T015 提交全部代码与规范变更并推送到 GitHub custom 分支
+- [x] T015 提交全部代码与规范变更并推送到 GitHub custom 分支
 
 - **单项可观察目标**：将全部源代码、Spec 资产与文档变更进行规范 Git 提交，并推送到本项目 GitHub 远端仓库 `jiezhengj/MacsyZones` 的 `custom` 分支。
 - **溯源关联**：FR-016、SC-008、项目 GitHub 纪律。
@@ -515,7 +515,7 @@
 
 ### 任务 T016：构建正式签名的 Release DMG 安装包
 
-- [ ] T016 构建正式签名的 Release DMG 安装包
+- [x] T016 构建正式签名的 Release DMG 安装包
 
 - **单项可观察目标**：使用项目专用构建脚本 `scripts/build-release-dmg.sh 2.0.0 major` 在 `/tmp` 目录下构建正式签名的 Release DMG 文件，并完成 `hdiutil verify` 校验。
 - **溯源关联**：FR-017、SC-007、SC-008、BUILD.md。
@@ -549,7 +549,7 @@
 
 ### 任务 T017：创建 Git Tag 并通过 gh CLI 发布 GitHub Release 与资产上传
 
-- [ ] T017 创建 Git Tag 并通过 gh CLI 发布 GitHub Release 与资产上传
+- [x] T017 创建 Git Tag 并通过 gh CLI 发布 GitHub Release 与资产上传
 
 - **单项可观察目标**：打上 Git Tag `v2.0.0` 并推送到 GitHub，使用 `gh release create` 创建标题为 `MacsyZones 中文定制版 v2.0.0` 的 Release，使用 `gh release upload` 上传 DMG 资产，随后删除本地临时 DMG。
 - **溯源关联**：FR-018、SC-008、AGENTS.md Release 规范、GitHub 操作纪律。
@@ -588,7 +588,7 @@
 
 ### 任务 T018：更新 RELEASES.md 版本台账为“已发布”并推送
 
-- [ ] T018 更新 RELEASES.md 版本台账为“已发布”并推送
+- [x] T018 更新 RELEASES.md 版本台账为“已发布”并推送
 
 - **单项可观察目标**：将 `RELEASES.md` 中的“当前已发布版本”更新为 `v2.0.0`，在发布历史表格中将 `v2.0.0` 的状态更新为“已发布”，并提交、推送到 `origin custom`。
 - **溯源关联**：FR-015、SC-008、RELEASES.md 维护规则。
