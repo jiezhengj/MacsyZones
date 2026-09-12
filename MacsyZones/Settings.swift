@@ -30,6 +30,9 @@ struct AppSettingsData: Codable {
     var cycleWindowsForwardShortcut: String?
     var cycleWindowsBackwardShortcut: String?
     var snapHighlightStrategy: SnapHighlightStrategy?
+    var snapWhileDragging: Bool?
+    var enableZoneSpanning: Bool?
+    var spanKey: String?
 }
 
 class AppSettings: UserData, ObservableObject {
@@ -51,6 +54,11 @@ class AppSettings: UserData, ObservableObject {
     private static let defaultCycleWindowsForwardShortcut: String = "Command+]"
     private static let defaultCycleWindowsBackwardShortcut: String = "Command+["
     private static let defaultSnapHighlightStrategy: SnapHighlightStrategy = .centerProximity
+    // Auto-snap while dragging without holding a key; the snap key then temporarily disables snapping.
+    private static let defaultSnapWhileDragging: Bool = true
+    // Span a window across multiple zones by holding the span key while hovering them.
+    private static let defaultEnableZoneSpanning: Bool = true
+    private static let defaultSpanKey: String = "Command"
     
     @Published var modifierKey: String = defaultModifierKey
     @Published var snapKey: String = defaultSnapKey
@@ -69,6 +77,9 @@ class AppSettings: UserData, ObservableObject {
     @Published var cycleWindowsForwardShortcut: String = defaultCycleWindowsForwardShortcut
     @Published var cycleWindowsBackwardShortcut: String = defaultCycleWindowsBackwardShortcut
     @Published var snapHighlightStrategy: SnapHighlightStrategy = defaultSnapHighlightStrategy
+    @Published var snapWhileDragging: Bool = defaultSnapWhileDragging
+    @Published var enableZoneSpanning: Bool = defaultEnableZoneSpanning
+    @Published var spanKey: String = defaultSpanKey
 
     init() {
         super.init(name: "AppSettings", data: "{}", fileName: "AppSettings.json")
@@ -99,6 +110,9 @@ class AppSettings: UserData, ObservableObject {
             self.cycleWindowsForwardShortcut = settings.cycleWindowsForwardShortcut ?? cycleWindowsForwardShortcut
             self.cycleWindowsBackwardShortcut = settings.cycleWindowsBackwardShortcut ?? cycleWindowsBackwardShortcut
             self.snapHighlightStrategy = settings.snapHighlightStrategy ?? snapHighlightStrategy
+            self.snapWhileDragging = settings.snapWhileDragging ?? snapWhileDragging
+            self.enableZoneSpanning = settings.enableZoneSpanning ?? enableZoneSpanning
+            self.spanKey = settings.spanKey ?? spanKey
         } catch {
             debugLog("Error parsing settings JSON: \(error)")
         }
@@ -123,7 +137,10 @@ class AppSettings: UserData, ObservableObject {
                 showSnapResizersOnHover: showSnapResizersOnHover,
                 cycleWindowsForwardShortcut: cycleWindowsForwardShortcut,
                 cycleWindowsBackwardShortcut: cycleWindowsBackwardShortcut,
-                snapHighlightStrategy: snapHighlightStrategy
+                snapHighlightStrategy: snapHighlightStrategy,
+                snapWhileDragging: snapWhileDragging,
+                enableZoneSpanning: enableZoneSpanning,
+                spanKey: spanKey
             )
             
             let jsonData = try JSONEncoder().encode(settings)
@@ -155,12 +172,13 @@ class AppSettings: UserData, ObservableObject {
         cycleWindowsForwardShortcut = Self.defaultCycleWindowsForwardShortcut
         cycleWindowsBackwardShortcut = Self.defaultCycleWindowsBackwardShortcut
         snapHighlightStrategy = Self.defaultSnapHighlightStrategy
+        snapWhileDragging = Self.defaultSnapWhileDragging
+        enableZoneSpanning = Self.defaultEnableZoneSpanning
+        spanKey = Self.defaultSpanKey
         
-        if #available(macOS 12.0, *) {
-            quickSnapper.toggleHotkey?.register(for: quickSnapShortcut)
-            cycleForwardHotkey.register(for: cycleWindowsForwardShortcut)
-            cycleBackwardHotkey.register(for: cycleWindowsBackwardShortcut)
-        }
+        quickSnapper.toggleHotkey?.register(for: quickSnapShortcut)
+        cycleForwardHotkey.register(for: cycleWindowsForwardShortcut)
+        cycleBackwardHotkey.register(for: cycleWindowsBackwardShortcut)
         
         save()
     }

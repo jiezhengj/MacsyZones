@@ -169,6 +169,61 @@ enum PositioningPreset: Hashable {
     }
 }
 
+/// Alignment-only presets: keep the section's current size and only
+/// reposition it relative to the screen (left/center/right, top/middle/bottom).
+enum AlignmentPreset: Hashable, CaseIterable {
+    case left, centerHorizontal, right
+    case top, middle, bottom
+
+    var iconName: String {
+        switch self {
+        case .left: return "align.horizontal.left.fill"
+        case .centerHorizontal: return "align.horizontal.center.fill"
+        case .right: return "align.horizontal.right.fill"
+        case .top: return "align.vertical.top.fill"
+        case .middle: return "align.vertical.center.fill"
+        case .bottom: return "align.vertical.bottom.fill"
+        }
+    }
+
+    var tooltip: String {
+        switch self {
+        case .left: return "靠左对齐"
+        case .centerHorizontal: return "水平居中"
+        case .right: return "靠右对齐"
+        case .top: return "靠顶对齐"
+        case .middle: return "垂直居中"
+        case .bottom: return "靠底对齐"
+        }
+    }
+
+    /// Keeps `currentFrame`'s size, only moves its origin to align within `screenFrame`.
+    /// Matches PositioningPreset's coordinate convention (y increases upward).
+    func calculateFrame(currentFrame: NSRect, screenFrame: NSRect) -> NSRect {
+        let w = currentFrame.width
+        let h = currentFrame.height
+        var x = currentFrame.origin.x
+        var y = currentFrame.origin.y
+
+        switch self {
+        case .left:
+            x = screenFrame.origin.x
+        case .centerHorizontal:
+            x = screenFrame.origin.x + (screenFrame.width - w) / 2
+        case .right:
+            x = screenFrame.origin.x + screenFrame.width - w
+        case .top:
+            y = screenFrame.origin.y + screenFrame.height - h
+        case .middle:
+            y = screenFrame.origin.y + (screenFrame.height - h) / 2
+        case .bottom:
+            y = screenFrame.origin.y
+        }
+
+        return NSRect(x: x, y: y, width: w, height: h)
+    }
+}
+
 struct ViewSizeKey: PreferenceKey {
     static var defaultValue: CGSize = .zero
     static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
@@ -185,6 +240,9 @@ struct EditorSectionView: View {
         [.leftHalf, .rightHalf, .topHalf, .bottomHalf, .topLeft, .topRight, .bottomLeft, .bottomRight],
         [.leftThird, .centerThirdVertical, .rightThird, .topThird, .centerThirdHorizontal, .bottomThird, .center, .fullScreen]
     ]
+
+    // Alignment-only: keep current size, just align position to the screen.
+    private let alignmentPresets: [AlignmentPreset] = [.left, .centerHorizontal, .right, .top, .middle, .bottom]
     
     private let baseButtonSize: CGFloat = 32
     private let baseSpacing: CGFloat = 6
@@ -300,6 +358,19 @@ struct EditorSectionView: View {
                                         .frame(height: max(1, groupSpacing - rowSpacing))
                                 }
                             }
+
+                            Divider()
+                                .frame(width: buttonSize * 4)
+                                .padding(.vertical, max(1, groupSpacing - rowSpacing))
+
+                            HStack(spacing: spacing) {
+                                ForEach(alignmentPresets, id: \.self) { preset in
+                                    AlignmentButton(preset: preset) {
+                                        applyAlignmentPreset(preset)
+                                    }
+                                    .frame(width: buttonSize, height: buttonSize)
+                                }
+                            }
                         }
                         .padding(padding)
                         .background(
@@ -351,6 +422,16 @@ struct EditorSectionView: View {
         sectionWindow.editorWindow.setFrame(newFrame, display: true, animate: true)
         sectionWindow.window.setFrame(newFrame, display: true, animate: true)
     }
+
+    private func applyAlignmentPreset(_ preset: AlignmentPreset) {
+        let screenFrame = sectionWindow.layoutWindow.window.frame
+        let currentFrame = sectionWindow.editorWindow.frame
+
+        let newFrame = preset.calculateFrame(currentFrame: currentFrame, screenFrame: screenFrame)
+
+        sectionWindow.editorWindow.setFrame(newFrame, display: true, animate: true)
+        sectionWindow.window.setFrame(newFrame, display: true, animate: true)
+    }
     
     private func setCursorInBackground() {
         let cursorInBg = CFStringCreateWithCString(kCFAllocatorDefault, "SetsCursorInBackground", 0)
@@ -375,6 +456,34 @@ struct PositioningButton: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.accentColor.opacity(isHovered ? 0.5 : 0.35))
+        )
+        .help(preset.tooltip)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
+struct AlignmentButton: View {
+    let preset: AlignmentPreset
+    let action: () -> Void
+
+    @State private var isHovered: Bool = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: preset.iconName)
+                .resizable()
+                .renderingMode(.template)
+                .aspectRatio(contentMode: .fit)
+                .foregroundColor(.white)
+                .padding(6)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .buttonStyle(PlainButtonStyle())
         .background(
@@ -550,7 +659,9 @@ class ScreenChangeWarningDialog {
                 self.dismiss()
             }
         )
-        panel.contentView = NSHostingView(rootView: view)
+        let warningHostingView = NSHostingView(rootView: view)
+        warningHostingView.sizingOptions = []
+        panel.contentView = warningHostingView
         
         panel.level = .statusBar + 1
         panel.isReleasedWhenClosed = false
@@ -633,12 +744,17 @@ class EditorSectionWindowDelegate: NSObject, NSWindowDelegate {
     
     func windowDidResize(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
-        sectionWindow?.windowSize = window.frame.size
-        sectionWindow?.layoutWindow?.refreshEditorBarState()
+        let newSize = window.frame.size
+        DispatchQueue.main.async { [weak self] in
+            self?.sectionWindow?.windowSize = newSize
+            self?.sectionWindow?.layoutWindow?.refreshEditorBarState()
+        }
     }
     
     func windowDidMove(_ notification: Notification) {
-        sectionWindow?.layoutWindow?.refreshEditorBarState()
+        DispatchQueue.main.async { [weak self] in
+            self?.sectionWindow?.layoutWindow?.refreshEditorBarState()
+        }
     }
 }
 
@@ -679,10 +795,13 @@ class SectionWindow: Hashable, ObservableObject {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.title = "Macsy Section"
-        window.contentView = NSHostingView(rootView: SectionView(sectionWindow: self))
+        let sectionHostingView = NSHostingView(rootView: SectionView(sectionWindow: self))
+        sectionHostingView.sizingOptions = []
+        window.contentView = sectionHostingView
         window.hasShadow = false
         window.ignoresMouseEvents = true
         window.level = .statusBar - 2
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
         layoutWindow.window.addChildWindow(window, ordered: .above)
         
@@ -717,7 +836,9 @@ class SectionWindow: Hashable, ObservableObject {
             sectionWindow: self,
             number: number
         )
-        editorWindow.contentView = NSHostingView(rootView: editorSectionView)
+        let editorHostingView = NSHostingView(rootView: editorSectionView)
+        editorHostingView.sizingOptions = []
+        editorWindow.contentView = editorHostingView
         
         editorWindowDelegate = EditorSectionWindowDelegate(sectionWindow: self)
         editorWindow.delegate = editorWindowDelegate
@@ -946,6 +1067,7 @@ class LayoutWindow: ObservableObject {
         window.backgroundColor = .clear
         window.ignoresMouseEvents = true
         window.isMovableByWindowBackground = false
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         
         editorBarWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 100),
                                          styleMask: [.resizable, .fullSizeContentView],
@@ -956,6 +1078,7 @@ class LayoutWindow: ObservableObject {
         editorBarWindow.backgroundColor = .clear
         editorBarWindow.titlebarAppearsTransparent = true
         editorBarWindow.isMovableByWindowBackground = true
+        editorBarWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         
         let hostingView = NSHostingView(rootView: EditorBarView(
             layoutWindow: self, 
@@ -966,6 +1089,7 @@ class LayoutWindow: ObservableObject {
             onSave: onSave, 
             onCancel: onCancel
         ))
+        hostingView.sizingOptions = []
         editorBarWindow.contentView = hostingView
         editorBarHostingView = hostingView
         
@@ -1792,9 +1916,12 @@ class SnapResizer: NSWindow {
         level = .statusBar + 1
         titlebarAppearsTransparent = true
         isMovableByWindowBackground = false
+        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
-        contentView = NSHostingView(rootView: SnapResizerView(relatedSections: relatedSections,
-                                                              isMouseOverResizer: isMouseOverResizer))
+        let resizerHostingView = NSHostingView(rootView: SnapResizerView(relatedSections: relatedSections,
+                                                                      isMouseOverResizer: isMouseOverResizer))
+        resizerHostingView.sizingOptions = []
+        contentView = resizerHostingView
         
         self.relatedSections = relatedSections
     }
@@ -2102,7 +2229,7 @@ class GridLayoutWindow {
         window.backgroundColor = .clear
         window.ignoresMouseEvents = true
         window.isMovableByWindowBackground = false
-        window.collectionBehavior = [.canJoinAllSpaces, .stationary]
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         window.hasShadow = false
 
         updateView()
@@ -2115,7 +2242,9 @@ class GridLayoutWindow {
                                                     rows: gridConfig.rows,
                                                     columns: gridConfig.columns,
                                                     selectionState: selectionState)
-        window.contentView = NSHostingView(rootView: view)
+        let hostingView = NSHostingView(rootView: view)
+        hostingView.sizingOptions = []
+        window.contentView = hostingView
     }
 
     func show() {

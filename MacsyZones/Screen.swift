@@ -31,17 +31,8 @@ func getFocusedScreen() -> NSScreen? {
 }
 
 func getScreenNumber(screen: NSScreen) -> Int? {
-    var screenIndex: Int?
-
-    if #available(macOS 26.0, *) {
-        if let displayId = screen.cgDirectDisplayID {
-            screenIndex = Int(displayId)
-        }
-    } else {
-        screenIndex = NSScreen.screens.firstIndex(of: screen)
-    }
-
-    return screenIndex
+    guard let displayId = screen.cgDirectDisplayID else { return nil }
+    return Int(displayId)
 }
 
 func resolveScreen(screenNumber: Int) -> NSScreen? {

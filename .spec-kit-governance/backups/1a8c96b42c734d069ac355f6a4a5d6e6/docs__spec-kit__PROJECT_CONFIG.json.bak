@@ -1,0 +1,55 @@
+{
+  "schema_version": 2,
+  "default_integration": {
+    "policy": "pinned",
+    "key": null,
+    "allow_change": false
+  },
+  "onboarding": {
+    "requires_current_user_approval": true,
+    "allow_unsafe_multi_install": false
+  },
+  "generic": {
+    "policy": "deny",
+    "maximum_bindings": 1
+  },
+  "catalogs": {
+    "allowed_sources": []
+  },
+  "context": {
+    "default_delivery_mode": "loader",
+    "allow_materialized_after_loader_failure": true
+  },
+  "documentation": {
+    "language_tag": null,
+    "selection_source": null,
+    "scope": "new-and-substantively-rewritten-project-documentation"
+  },
+  "upgrade": {
+    "review_mode": "pull-request-required"
+  },
+  "quality_gates": {
+    "clarify": "required",
+    "checklist": "required",
+    "analyze": "required",
+    "validate": "required",
+    "converge": "required"
+  },
+  "workflow_governance": {
+    "mode": "governed-sdd-required",
+    "discovery": "required-for-substantive",
+    "artifact_reviews": [
+      "DISCOVERY",
+      "SPECIFICATION",
+      "PLAN_BUNDLE",
+      "TASK_PACKAGE",
+      "REMEDIATION"
+    ],
+    "approval_evidence": "committed-project-local",
+    "tiny_model_tasks": "required",
+    "cold_start_review": {
+      "required": true,
+      "minimum_samples": 3
+    }
+  }
+}

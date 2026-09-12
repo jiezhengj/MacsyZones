@@ -65,7 +65,10 @@ class SettingsState: ObservableObject {
             showSnapResizersOnHover: appSettings.showSnapResizersOnHover,
             cycleWindowsForwardShortcut: appSettings.cycleWindowsForwardShortcut,
             cycleWindowsBackwardShortcut: appSettings.cycleWindowsBackwardShortcut,
-            snapHighlightStrategy: appSettings.snapHighlightStrategy
+            snapHighlightStrategy: appSettings.snapHighlightStrategy,
+            snapWhileDragging: appSettings.snapWhileDragging,
+            enableZoneSpanning: appSettings.enableZoneSpanning,
+            spanKey: appSettings.spanKey
         )
 
         self.tempAppSettings = currentSettings
@@ -147,7 +150,10 @@ class SettingsState: ObservableObject {
                lhs.showSnapResizersOnHover == rhs.showSnapResizersOnHover &&
                lhs.cycleWindowsForwardShortcut == rhs.cycleWindowsForwardShortcut &&
                lhs.cycleWindowsBackwardShortcut == rhs.cycleWindowsBackwardShortcut &&
-               lhs.snapHighlightStrategy == rhs.snapHighlightStrategy
+               lhs.snapHighlightStrategy == rhs.snapHighlightStrategy &&
+               lhs.snapWhileDragging == rhs.snapWhileDragging &&
+               lhs.enableZoneSpanning == rhs.enableZoneSpanning &&
+               lhs.spanKey == rhs.spanKey
     }
 
     // MARK: - Save All Changes
@@ -171,6 +177,9 @@ class SettingsState: ObservableObject {
         appSettings.cycleWindowsForwardShortcut = tempAppSettings.cycleWindowsForwardShortcut ?? appSettings.cycleWindowsForwardShortcut
         appSettings.cycleWindowsBackwardShortcut = tempAppSettings.cycleWindowsBackwardShortcut ?? appSettings.cycleWindowsBackwardShortcut
         appSettings.snapHighlightStrategy = tempAppSettings.snapHighlightStrategy ?? appSettings.snapHighlightStrategy
+        appSettings.snapWhileDragging = tempAppSettings.snapWhileDragging ?? appSettings.snapWhileDragging
+        appSettings.enableZoneSpanning = tempAppSettings.enableZoneSpanning ?? appSettings.enableZoneSpanning
+        appSettings.spanKey = tempAppSettings.spanKey ?? appSettings.spanKey
         appSettings.save()
 
         // Apply SpaceLayoutPreferences
@@ -178,11 +187,9 @@ class SettingsState: ObservableObject {
         spaceLayoutPreferences.save()
 
         // Update hotkeys
-        if #available(macOS 12.0, *) {
-            quickSnapper.toggleHotkey?.register(for: appSettings.quickSnapShortcut)
-            cycleForwardHotkey.register(for: appSettings.cycleWindowsForwardShortcut)
-            cycleBackwardHotkey.register(for: appSettings.cycleWindowsBackwardShortcut)
-        }
+        quickSnapper.toggleHotkey?.register(for: appSettings.quickSnapShortcut)
+        cycleForwardHotkey.register(for: appSettings.cycleWindowsForwardShortcut)
+        cycleBackwardHotkey.register(for: appSettings.cycleWindowsBackwardShortcut)
 
         // Update original values
         originalAppSettings = tempAppSettings
@@ -217,7 +224,10 @@ class SettingsState: ObservableObject {
             showSnapResizersOnHover: appSettings.showSnapResizersOnHover,
             cycleWindowsForwardShortcut: appSettings.cycleWindowsForwardShortcut,
             cycleWindowsBackwardShortcut: appSettings.cycleWindowsBackwardShortcut,
-            snapHighlightStrategy: appSettings.snapHighlightStrategy
+            snapHighlightStrategy: appSettings.snapHighlightStrategy,
+            snapWhileDragging: appSettings.snapWhileDragging,
+            enableZoneSpanning: appSettings.enableZoneSpanning,
+            spanKey: appSettings.spanKey
         )
 
         self.tempAppSettings = currentSettings

@@ -117,7 +117,9 @@ public struct LiquidGlassView<Content: View>: NSViewRepresentable {
             hosting.rootView = content
         }
 
-        nsView.setValue(cornerRadius, forKey: "cornerRadius")
+        if let currentRadius = nsView.value(forKey: "cornerRadius") as? CGFloat, currentRadius != cornerRadius {
+            nsView.setValue(cornerRadius, forKey: "cornerRadius")
+        }
         callPrivateVariantSetter(on: nsView, value: variant.rawValue)
     }
 }

@@ -35,30 +35,26 @@ struct SettingsView: View {
     }
 
     func updateStartAtLoginState() {
-        if #available(macOS 13.0, *) {
-            let actualState = SMAppService.mainApp.status == .enabled
-            if startAtLogin != actualState {
-                startAtLogin = actualState
-            }
+        let actualState = SMAppService.mainApp.status == .enabled
+        if startAtLogin != actualState {
+            startAtLogin = actualState
         }
     }
 
     func toggleRunAtStartup() {
-        if #available(macOS 13.0, *) {
-            do {
-                if startAtLogin {
-                    try SMAppService.mainApp.register()
-                } else {
-                    try SMAppService.mainApp.unregister()
-                }
+        do {
+            if startAtLogin {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    self.updateStartAtLoginState()
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.updateStartAtLoginState()
-                }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.updateStartAtLoginState()
+            }
+        } catch {
+            DispatchQueue.main.async {
+                self.updateStartAtLoginState()
             }
         }
     }
@@ -114,11 +110,9 @@ struct SettingsView: View {
                 }
                 .foregroundColor(.red)
 
-                if #available(macOS 12.0, *) {
-                    Button(action: { showOnboarding() }) {
-                        Image(systemName: "info.circle")
-                        Text("关于")
-                    }
+                Button(action: { showOnboarding() }) {
+                    Image(systemName: "info.circle")
+                    Text("关于")
                 }
 
                 if updater.isChecking {
@@ -546,6 +540,56 @@ struct SnapKeySettingsSection: View {
             ))
             .toggleStyle(.checkbox)
             .padding(.top, 4)
+
+            Toggle("拖拽时自动吸附（无需按键）", isOn: Binding(
+                get: { state.tempAppSettings.snapWhileDragging ?? true },
+                set: {
+                    state.tempAppSettings.snapWhileDragging = $0
+                    state.checkForChanges()
+                }
+            ))
+            .toggleStyle(.checkbox)
+            .padding(.top, 4)
+
+            if state.tempAppSettings.snapWhileDragging ?? true {
+                Text("拖拽窗口时自动显示布局。按住吸附键可临时关闭吸附。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Toggle("多分区联合吸附（按住扩展按键）", isOn: Binding(
+                get: { state.tempAppSettings.enableZoneSpanning ?? true },
+                set: {
+                    state.tempAppSettings.enableZoneSpanning = $0
+                    state.checkForChanges()
+                }
+            ))
+            .toggleStyle(.checkbox)
+            .padding(.top, 4)
+
+            if state.tempAppSettings.enableZoneSpanning ?? true {
+                Text("按住此扩展按键划过多分区，释放时可将窗口跨区联合吸附。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Picker("扩展按键", selection: Binding(
+                    get: { state.tempAppSettings.spanKey ?? "Command" },
+                    set: {
+                        state.tempAppSettings.spanKey = $0
+                        state.checkForChanges()
+                    }
+                )) {
+                    Text("Command").tag("Command")
+                    Text("Shift").tag("Shift")
+                    Text("Option").tag("Option")
+                    Text("Control").tag("Control")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .labelsHidden()
+                .pickerStyle(MenuPickerStyle())
+            }
         }
     }
 }
