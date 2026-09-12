@@ -1,0 +1,610 @@
+{
+  "schema_version": 1,
+  "feature_id": "001-macos27-modernization",
+  "result": "READY",
+  "generated_at": "2026-09-12T12:07:00Z",
+  "artifact_paths": [
+    "docs/spec-kit/features/001-macos27-modernization/DISCOVERY.md",
+    "specs/001-macos27-modernization/plan.md",
+    "specs/001-macos27-modernization/spec.md",
+    "specs/001-macos27-modernization/tasks.md"
+  ],
+  "content_sha256": {
+    "docs/spec-kit/features/001-macos27-modernization/DISCOVERY.md": "f47119ec7a32940b8485e88015f3554e8271551961cbf31d25d130b5b28cd195",
+    "specs/001-macos27-modernization/spec.md": "2746319ddb017cf19243c97034bb31e3350e17cbd16229f2558b8713aefcdae3",
+    "specs/001-macos27-modernization/plan.md": "344c5f9cf0152f4469fb197302adad02e1a2f43308ae7d4f5d24f4372d102e7f",
+    "specs/001-macos27-modernization/tasks.md": "4fcc3b350a7d97ed05e20aca85a240bdd7f00bbb532f2b43865cb502a6580e9d"
+  },
+  "tasks": [
+    {
+      "id": "T001",
+      "objective": "升级工程部署目标至 macOS 27.0 并注册新增源码文件引用",
+      "traceability": "FR-001, SC-007, macOS 27 Baseline",
+      "context_summary": "将 Xcode 工程配置统一提升至 macOS 27.0，并为 DragSessionState.swift 添加构建与文件引用。",
+      "preconditions": {
+        "dependency_task_ids": []
+      },
+      "allowed_files": [
+        "MacsyZones.xcodeproj/project.pbxproj"
+      ],
+      "read_only_references": [
+        "specs/001-macos27-modernization/plan.md"
+      ],
+      "forbidden_changes": "禁止修改 Bundle ID、证书与 Team ID",
+      "inputs_outputs": "输入原有 project.pbxproj，输出 MACOSX_DEPLOYMENT_TARGET = 27.0 并包含 DragSessionState.swift 引用",
+      "invariants_and_edge_cases": "Debug 和 Release 配置的部署版本必须完全一致",
+      "implementation_steps": "更新 MACOSX_DEPLOYMENT_TARGET 为 27.0；在 PBXBuildFile、PBXFileReference、PBXGroup、PBXSourcesBuildPhase 加入 DragSessionState.swift",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "grep \"MACOSX_DEPLOYMENT_TARGET\" MacsyZones.xcodeproj/project.pbxproj | sort -u",
+          "expected_result": "MACOSX_DEPLOYMENT_TARGET = 27.0;"
+        }
+      ],
+      "completion_evidence": "project.pbxproj 包含 27.0 部署目标与文件引用",
+      "stop_conditions": "若 xcodebuild -list 解析失败则停止",
+      "handoff": "交接给 T002 进行可用性宏与历史降级清理"
+    },
+    {
+      "id": "T002",
+      "objective": "消除历史系统可用性宏分支与屏幕索引降级",
+      "traceability": "FR-001, SC-007, macOS 27 Baseline",
+      "context_summary": "全面移除 Screen.swift、Preferences.swift、Settings.swift 中的 #available 宏，屏幕单一直连 cgDirectDisplayID。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T001"
+        ]
+      },
+      "allowed_files": [
+        "MacsyZones/Screen.swift",
+        "MacsyZones/Preferences.swift",
+        "MacsyZones/Settings.swift"
+      ],
+      "read_only_references": [
+        "specs/001-macos27-modernization/spec.md"
+      ],
+      "forbidden_changes": "禁止更改快捷键偏好键名与持久化逻辑",
+      "inputs_outputs": "输入带有旧宏判断的文件，输出纯净的 macOS 27 原生代码",
+      "invariants_and_edge_cases": "必须保证直接调用 cgDirectDisplayID 且无数组越界风险",
+      "implementation_steps": "移除所有 #available(macOS 12.0, *) 等宏分支，纯净基于 cgDirectDisplayID 返回",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "git grep \"#available\" MacsyZones/Screen.swift MacsyZones/Settings.swift MacsyZones/Preferences.swift || echo \"CLEAN\"",
+          "expected_result": "CLEAN"
+        }
+      ],
+      "completion_evidence": "代码中无任何 #available 残留",
+      "stop_conditions": "若出现大括号未闭合语法错误则停止",
+      "handoff": "交接给 T003 进行启动重复加载清理"
+    },
+    {
+      "id": "T003",
+      "objective": "消除启动阶段双重布局加载",
+      "traceability": "FR-006, SC-003, Upstream PR #104",
+      "context_summary": "删除 App.swift 中 applicationDidFinishLaunching 内多余的 userLayouts.load()，节省 ~170MB 启动内存。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T001"
+        ]
+      },
+      "allowed_files": [
+        "MacsyZones/App.swift"
+      ],
+      "read_only_references": [
+        "specs/001-macos27-modernization/plan.md"
+      ],
+      "forbidden_changes": "禁止删除 UserData.init() 中的加载逻辑",
+      "inputs_outputs": "删除 App.swift 第 199 行附近的 userLayouts.load()",
+      "invariants_and_edge_cases": "应用启动时仍能正确载入配置",
+      "implementation_steps": "定位并删除 applicationDidFinishLaunching 内部第二处 userLayouts.load() 调用",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "git grep -n \"userLayouts.load()\" MacsyZones/App.swift || echo \"REMOVED\"",
+          "expected_result": "REMOVED"
+        }
+      ],
+      "completion_evidence": "App.swift 中不再显式调用 userLayouts.load()",
+      "stop_conditions": "若存在其他合法调用点须仔细核对仅删除启动冗余点",
+      "handoff": "交接给 T004 实现惰性物化"
+    },
+    {
+      "id": "T004",
+      "objective": "实现 UserLayout 布局窗口惰性物化（Lazy Materialization）",
+      "traceability": "FR-007, SC-003, Upstream PR #106",
+      "context_summary": "在 UserLayout 中按需实例化 layoutWindow，并在 hide 与 reset 操作中加入守卫，避免常驻内存膨胀。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T003"
+        ]
+      },
+      "allowed_files": [
+        "MacsyZones/UserData.swift",
+        "MacsyZones/Macsy.swift"
+      ],
+      "read_only_references": [
+        "specs/001-macos27-modernization/plan.md"
+      ],
+      "forbidden_changes": "禁止更改 UserLayouts.json 持久化结构",
+      "inputs_outputs": "输入强引用 layoutWindow，输出 storedLayoutWindow 与 hasMaterializedLayoutWindow 惰性实现",
+      "invariants_and_edge_cases": "在未物化状态下调用 hide() 不得触发其实例化",
+      "implementation_steps": "重写 UserLayout 中的 layoutWindow 计算属性，Macsy.swift 增加 hasMaterializedLayoutWindow 守卫",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "git grep \"storedLayoutWindow\" MacsyZones/UserData.swift",
+          "expected_result": "MacsyZones/UserData.swift:    private var storedLayoutWindow: LayoutWindow?"
+        }
+      ],
+      "completion_evidence": "UserLayout 包含 storedLayoutWindow 且具备守卫",
+      "stop_conditions": "若修改引发循环引用立即终止",
+      "handoff": "交接给 T005 完善 QuickSnapper 资源释放"
+    },
+    {
+      "id": "T005",
+      "objective": "实现 QuickSnapper 关闭资源彻底解构与世代代号保护",
+      "traceability": "FR-008, SC-003, Upstream PR #107",
+      "context_summary": "QuickSnapper 关闭后置空 panel.contentView 并清空 windows，引入 lifecycleGeneration 防异步动画竞态。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T001"
+        ]
+      },
+      "allowed_files": [
+        "MacsyZones/QuickSnapper.swift"
+      ],
+      "read_only_references": [
+        "specs/001-macos27-modernization/plan.md"
+      ],
+      "forbidden_changes": "禁止破坏默认快捷键与缩略图网格渲染",
+      "inputs_outputs": "输入保留 contentView 的类，输出关闭彻底释放且具有世代代号保护的实现",
+      "invariants_and_edge_cases": "关闭状态下任何回车或方向键输入不得触发异常",
+      "implementation_steps": "添加 lifecycleGeneration: UInt64，hide 时递增，动画完成核对世代后置空 contentView，UI 收拢至 @MainActor",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "git grep \"lifecycleGeneration\" MacsyZones/QuickSnapper.swift",
+          "expected_result": "MacsyZones/QuickSnapper.swift:    private var lifecycleGeneration: UInt64 = 0"
+        }
+      ],
+      "completion_evidence": "QuickSnapper 包含 lifecycleGeneration 且在关闭时置空 contentView",
+      "stop_conditions": "若关闭后无法再次呼出立即检查 show() 中的 contentView 重建",
+      "handoff": "交接给 T006 构建拖拽状态机"
+    },
+    {
+      "id": "T006",
+      "objective": "创建纯 Swift 拖拽会话状态机 DragSessionState",
+      "traceability": "FR-002, SC-001, SC-002, Upstream PR #102",
+      "context_summary": "创建纯 Swift 的 DragSessionState 模型，统一按键与拖拽先后时序，管理窗口归属锁。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T001"
+        ]
+      },
+      "allowed_files": [
+        "MacsyZones/DragSessionState.swift"
+      ],
+      "read_only_references": [
+        "specs/001-macos27-modernization/plan.md"
+      ],
+      "forbidden_changes": "该模型不得依赖 AppKit 或真实 NSWindow",
+      "inputs_outputs": "新建 MacsyZones/DragSessionState.swift",
+      "invariants_and_edge_cases": "在拖拽活跃期间拒绝外来窗口夺取焦点，鼠标松开保留物理修饰键",
+      "implementation_steps": "复用 PR #102 中的 DragSessionState.swift 实现全部状态转移方法",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "test -f MacsyZones/DragSessionState.swift && echo \"File exists\"",
+          "expected_result": "File exists"
+        }
+      ],
+      "completion_evidence": "DragSessionState.swift 存在且包含 DragSessionState 结构体",
+      "stop_conditions": "若包含编译错误立即修复",
+      "handoff": "交接给 T007 重构 WindowObserverManager"
+    },
+    {
+      "id": "T007",
+      "objective": "重构 WindowObserverManager 辅助功能观察器引擎",
+      "traceability": "FR-003, FR-004, FR-014, SC-001, Upstream PR #102",
+      "context_summary": "在 AXObserverAddNotification 成功后才记录窗口，实现指数退避重试，接入 didActivateApplicationNotification 对账与退出资源清理。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T006"
+        ]
+      },
+      "allowed_files": [
+        "MacsyZones/App.swift"
+      ],
+      "read_only_references": [
+        "specs/001-macos27-modernization/plan.md"
+      ],
+      "forbidden_changes": "禁止删除辅助功能授权弹窗",
+      "inputs_outputs": "输入脆弱的 WindowObserverManager，输出带退避重试与激活补查的观察器引擎",
+      "invariants_and_edge_cases": "针对同一应用最多重试 3 次，退出时彻底移除 RunLoop Sources",
+      "implementation_steps": "复用 PR #102 的 WindowObserverManager：增加返回值检查、指数退避重试、didActivateApplicationNotification 监听与清理",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "git grep \"kAXErrorCannotComplete\" MacsyZones/App.swift",
+          "expected_result": "MacsyZones/App.swift:                    if error == .cannotComplete {"
+        }
+      ],
+      "completion_evidence": "App.swift 具备完整的 AX 返回值校验与退避重试",
+      "stop_conditions": "若重试未设置终止上限立即修复",
+      "handoff": "交接给 T008 实现位移兜底与跨 Space 属性"
+    },
+    {
+      "id": "T008",
+      "objective": "激活物理鼠标位移兜底与遮罩层 Space 跨越增强",
+      "traceability": "FR-005, SC-001, SC-002, Upstream PR #102",
+      "context_summary": "在 onMouseDragged 中实现位移 > 5pt 兜底吸附；遮罩层设置 canJoinAllSpaces；基于显示器 UUID 独立解析 Space。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T006",
+          "T007"
+        ]
+      },
+      "allowed_files": [
+        "MacsyZones/Macsy.swift",
+        "MacsyZones/Preferences.swift"
+      ],
+      "read_only_references": [
+        "specs/001-macos27-modernization/plan.md"
+      ],
+      "forbidden_changes": "禁止在鼠标微小位移（< 5pt）时激活吸附",
+      "inputs_outputs": "输入空实现的 onMouseDragged，输出带位移阈值判断的保底逻辑与跨 Space 属性配置",
+      "invariants_and_edge_cases": "鼠标释放时必须清除位移差累加",
+      "implementation_steps": "在 onMouseDragged 中读取位移差与 AX 窗口，调用 dragSessionState；窗口 collectionBehavior 设为 [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]；Preferences 基于 display UUID 读取 Space",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "git grep \"canJoinAllSpaces\" MacsyZones/Macsy.swift",
+          "expected_result": "MacsyZones/Macsy.swift:        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]"
+        }
+      ],
+      "completion_evidence": "onMouseDragged 具备位移判断，窗口具备 canJoinAllSpaces 属性",
+      "stop_conditions": "若多显示器 Space 查询空指针须回退全局 Space",
+      "handoff": "交接给 T009 进行安全解包加固"
+    },
+    {
+      "id": "T009",
+      "objective": "修复 UserData.reArrange() 强制解包崩溃",
+      "traceability": "FR-009, SC-005, Upstream PR #86",
+      "context_summary": "消除 reArrange() 中的 $0.number! 与 .first(where:)! 强制解包，使用安全排序与 guard let 遍历跳过脏数据。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T001"
+        ]
+      },
+      "allowed_files": [
+        "MacsyZones/UserData.swift"
+      ],
+      "read_only_references": [
+        "specs/001-macos27-modernization/plan.md"
+      ],
+      "forbidden_changes": "禁止改变分区从 1 开始递增的重排规则",
+      "inputs_outputs": "输入含 ! 的 reArrange()，输出零强制解包的实现",
+      "invariants_and_edge_cases": "遇到缺失 sectionWindow 的脏配置安全跳过，不得崩溃",
+      "implementation_steps": "使用 ($0.number ?? Int.max) 排序，遍历中使用 guard let sectionWindow = ... else { continue }",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "git grep \"number\\!\" MacsyZones/UserData.swift || echo \"SAFE\"",
+          "expected_result": "SAFE"
+        }
+      ],
+      "completion_evidence": "UserData.swift 中不再包含 number! 强制解包",
+      "stop_conditions": "若排序规则不一致须复原为 ($0.number ?? Int.max)",
+      "handoff": "交接给 T010 进行约束重入防护"
+    },
+    {
+      "id": "T010",
+      "objective": "加固 AppKit 约束重入防护与 NSHostingView 尺寸声明",
+      "traceability": "FR-010, FR-011, SC-004, Upstream PR #79",
+      "context_summary": "为所有固定尺寸 NSHostingView 设置 sizingOptions = []；代理与悬停更新推迟至主线程异步；LiquidGlassView 守卫 KVC 写入。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T001"
+        ]
+      },
+      "allowed_files": [
+        "MacsyZones/Layout.swift",
+        "MacsyZones/LiquidGlass.swift",
+        "MacsyZones/Macsy.swift"
+      ],
+      "read_only_references": [
+        "specs/001-macos27-modernization/plan.md"
+      ],
+      "forbidden_changes": "禁止引入 #available 宏，macOS 27 原生支持 sizingOptions",
+      "inputs_outputs": "输入同步更新 @Published 的代码，输出带 sizingOptions = [] 与异步调度的健壮实现",
+      "invariants_and_edge_cases": "仅在 cornerRadius 真正改变时才调用 setValue",
+      "implementation_steps": "为各窗口 NSHostingView 配置 sizingOptions = []；windowDidResize 与 windowDidMove 异步派发；LiquidGlassView 增加相等性守卫；getHoveredSectionWindow 异步赋值 isHovered",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "git grep \"sizingOptions = \\[\\]\" MacsyZones/Layout.swift",
+          "expected_result": "MacsyZones/Layout.swift:        warningHostingView.sizingOptions = []"
+        }
+      ],
+      "completion_evidence": "Layout.swift 中有多处 sizingOptions = [] 设置",
+      "stop_conditions": "若存在线程警告须检查 weak self 引用",
+      "handoff": "交接给 T011 实现编辑器对齐预设"
+    },
+    {
+      "id": "T011",
+      "objective": "分区编辑器对齐工具栏 AlignmentPreset",
+      "traceability": "FR-012, SC-005, Upstream PR #86",
+      "context_summary": "在 Layout.swift 中实现 AlignmentPreset 枚举与 6 个 SF Symbols 按钮，仅平移分区原点而不改变宽高。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T001"
+        ]
+      },
+      "allowed_files": [
+        "MacsyZones/Layout.swift"
+      ],
+      "read_only_references": [
+        "specs/001-macos27-modernization/plan.md"
+      ],
+      "forbidden_changes": "禁止破坏原有的 PositioningPreset 预设缩放功能",
+      "inputs_outputs": "输入无对齐工具栏的编辑器，输出带 6 个对齐按钮的 EditorSectionView",
+      "invariants_and_edge_cases": "计算新坐标时必须保证分区落在屏幕可见安全矩形内",
+      "implementation_steps": "定义 AlignmentPreset（left, horizontalCenter, right, top, verticalCenter, bottom），实现 AlignmentButton，在 EditorSectionView 注入操作栏",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "git grep \"enum AlignmentPreset\" MacsyZones/Layout.swift",
+          "expected_result": "MacsyZones/Layout.swift:enum AlignmentPreset: CaseIterable {"
+        }
+      ],
+      "completion_evidence": "Layout.swift 中定义了 AlignmentPreset 枚举",
+      "stop_conditions": "若 SF Symbols 找不到图标须核对苹果官方标准命名",
+      "handoff": "交接给 T012 实现拖拽增强与联合吸附"
+    },
+    {
+      "id": "T012",
+      "objective": "拖拽自动吸附、多区联合吸附与粘性右键取消",
+      "traceability": "FR-013, SC-006, Upstream PR #86",
+      "context_summary": "在 Settings 中持久化拖拽与联合吸附设置并在 SettingsView.swift 提供中文 UI，在 Macsy.swift 实现多区合并吸附与粘性右键取消。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T006",
+          "T008"
+        ]
+      },
+      "allowed_files": [
+        "MacsyZones/Settings.swift",
+        "MacsyZones/SettingsView.swift",
+        "MacsyZones/Macsy.swift",
+        "MacsyZones/App.swift"
+      ],
+      "read_only_references": [
+        "specs/001-macos27-modernization/plan.md"
+      ],
+      "forbidden_changes": "UI 必须添加在 SettingsView.swift 并使用纯正简洁中文",
+      "inputs_outputs": "输入单区吸附逻辑，输出支持自动吸附、Command 联合矩形合并吸附及右键取消的完整系统",
+      "invariants_and_edge_cases": "右键取消后，在鼠标左键未松开前，后续鼠标移动均不得重新激活动画",
+      "implementation_steps": "Settings 添加 snapWhileDragging、enableZoneSpanning、spanKey；SettingsView 添加中文界面；Macsy 收集 spannedSectionWindows 并计算联合吸附；维护 snapSuppressedForDrag 标志位",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "git grep \"enableZoneSpanning\" MacsyZones/Settings.swift",
+          "expected_result": "MacsyZones/Settings.swift:    @Published var enableZoneSpanning: Bool = defaultEnableZoneSpanning"
+        }
+      ],
+      "completion_evidence": "Settings.swift 中包含 enableZoneSpanning 定义",
+      "stop_conditions": "若联合矩形计算导致坐标翻转须核对笛卡尔坐标系统换算",
+      "handoff": "交接给 T013 进行发布门禁与构建验证"
+    },
+    {
+      "id": "T013",
+      "objective": "登记发布目标并执行全量版本门禁与构建验证",
+      "traceability": "SC-007, 版本与构建治理规范",
+      "context_summary": "在 RELEASES.md 登记 v2.0.0 / Major，执行 check-version 门禁与 build-debug 编译及签名审计。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T001",
+          "T002",
+          "T003",
+          "T004",
+          "T005",
+          "T006",
+          "T007",
+          "T008",
+          "T009",
+          "T010",
+          "T011",
+          "T012"
+        ]
+      },
+      "allowed_files": [
+        "RELEASES.md"
+      ],
+      "read_only_references": [
+        "VERSIONING.md",
+        "BUILD.md"
+      ],
+      "forbidden_changes": "禁止跳过 check-version.sh，禁止在项目目录下生成 DMG",
+      "inputs_outputs": "输入完整代码，输出登记有 v2.0.0 的 RELEASES.md 且编译与签名审计通过",
+      "invariants_and_edge_cases": "签名证书必须为 Apple Development: jie.zhengj@qq.com (8SDSF987N2)",
+      "implementation_steps": "在 RELEASES.md 登记下一目标为 2.0.0 / Major；运行 check-version 校验；运行 build-debug 验证构建与签名",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "scripts/check-version.sh 2.0.0 major",
+          "expected_result": "Version check passed: 2.0.0 (major)"
+        }
+      ],
+      "completion_evidence": "RELEASES.md 登记 2.0.0，check-version.sh 与 build-debug.sh 全部通过",
+      "stop_conditions": "若构建或签名失败须立即排查修复",
+      "handoff": "交接给 T014 进行用户说明文档更新"
+    },
+    {
+      "id": "T014",
+      "objective": "更新项目面向用户的说明文档 README.md",
+      "traceability": "FR-015, SC-008, 项目文档规范",
+      "context_summary": "在 README.md 中全面更新系统支持要求（macOS 27.0+），并撰写关于 Finder 冷启动修复、分区对齐工具栏、拖拽自动吸附和多区联合吸附的功能说明与最新发布指引。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T013"
+        ]
+      },
+      "allowed_files": [
+        "README.md"
+      ],
+      "read_only_references": [
+        "specs/001-macos27-modernization/spec.md",
+        "RELEASES.md"
+      ],
+      "forbidden_changes": "禁止在 Markdown 正文中使用全局大标题或水平分割线（---）",
+      "inputs_outputs": "输入旧版 README.md，输出与 macOS 27 专版对齐的全新 README.md",
+      "invariants_and_edge_cases": "必须保留致谢原作者与 GPL-3.0 许可证说明",
+      "implementation_steps": "更新项目概述与系统需求为 macOS 27.0+；详细列出 v2.0.0 的核心特性与交互指南；保留致谢与开源许可",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "git grep \"macOS 27\" README.md",
+          "expected_result": "macOS 27"
+        }
+      ],
+      "completion_evidence": "README.md 内容全面更新并通过排版规则审查",
+      "stop_conditions": "排版违反 Markdown 空行或标题规则时必须调整",
+      "handoff": "交接给 T015 进行版本提交与推送"
+    },
+    {
+      "id": "T015",
+      "objective": "提交全部代码与规范变更并推送到 GitHub custom 分支",
+      "traceability": "FR-016, SC-008, 项目 GitHub 纪律",
+      "context_summary": "将全部源代码、Spec 资产与文档变更进行规范 Git 提交，并推送到本项目 GitHub 远端仓库 jiezhengj/MacsyZones 的 custom 分支。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T014"
+        ]
+      },
+      "allowed_files": [
+        "README.md",
+        "RELEASES.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "MacsyZones.xcodeproj/project.pbxproj",
+        "MacsyZones/*",
+        "docs/*",
+        "specs/*",
+        "tools/*"
+      ],
+      "read_only_references": [
+        "AGENTS.md"
+      ],
+      "forbidden_changes": "严禁将任何 .dmg 文件加入暂存区或提交，严禁推送到 upstream",
+      "inputs_outputs": "输入工作区待提交变更，输出 origin/custom 与本地 custom 分支同步且工作区干净",
+      "invariants_and_edge_cases": "提交信息清晰明了，概括 macOS 27 专版化重构与 PR 溯源",
+      "implementation_steps": "执行 git status 复核无临时文件或 DMG；执行 git add 暂存所有代码与文档；执行 git commit 生成提交；执行 git push origin custom 推送",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "git log -n 1 --oneline",
+          "expected_result": "custom"
+        }
+      ],
+      "completion_evidence": "远端 custom 分支接收到最新 commit",
+      "stop_conditions": "若推送出现拒绝，核对网络与分支状态",
+      "handoff": "交接给 T016 进行 Release DMG 构建"
+    },
+    {
+      "id": "T016",
+      "objective": "构建正式签名的 Release DMG 安装包",
+      "traceability": "FR-017, SC-007, SC-008, BUILD.md",
+      "context_summary": "使用项目专用构建脚本 scripts/build-release-dmg.sh 2.0.0 major 在 /tmp 目录下构建正式签名的 Release DMG 文件，并完成 hdiutil verify 校验。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T015"
+        ]
+      },
+      "allowed_files": [
+        "scripts/build-release-dmg.sh"
+      ],
+      "read_only_references": [
+        "BUILD.md",
+        "scripts/build-release-dmg.sh"
+      ],
+      "forbidden_changes": "绝对禁止在项目仓库目录下生成或保存 DMG 文件",
+      "inputs_outputs": "输入通过版本门禁的代码库，输出位于 /tmp/MacsyZones-v2.0.0.dmg 的经过签名校验的镜像文件",
+      "invariants_and_edge_cases": "签名 Authority 必须为 Apple Development: jie.zhengj@qq.com (8SDSF987N2)，Team ID 必须为 74FR87HYTH",
+      "implementation_steps": "调用 scripts/build-release-dmg.sh 2.0.0 major 执行 Release 构建；脚本自动在 /tmp 完成构建与校验；复核镜像大小与完整性",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "hdiutil verify /tmp/MacsyZones-v2.0.0.dmg",
+          "expected_result": "Checksum: OK"
+        }
+      ],
+      "completion_evidence": "/tmp/MacsyZones-v2.0.0.dmg 校验通过",
+      "stop_conditions": "若签名或打包失败，必须排查证书与编译日志",
+      "handoff": "交接给 T017 进行 GitHub Release 发布与资产上传"
+    },
+    {
+      "id": "T017",
+      "objective": "创建 Git Tag 并通过 gh CLI 发布 GitHub Release 与资产上传",
+      "traceability": "FR-018, SC-008, AGENTS.md Release 规范, GitHub 操作纪律",
+      "context_summary": "打上 Git Tag v2.0.0 并推送到 GitHub，使用 gh release create 创建标题为 MacsyZones 中文定制版 v2.0.0 的 Release，使用 gh release upload 上传 DMG 资产，随后删除本地临时 DMG。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T016"
+        ]
+      },
+      "allowed_files": [
+        "RELEASES.md"
+      ],
+      "read_only_references": [
+        "AGENTS.md"
+      ],
+      "forbidden_changes": "禁止在 Release 标题后添加额外描述，禁止上传非 /tmp 下的构建文件，禁止绕过 gh CLI",
+      "inputs_outputs": "输入 /tmp/MacsyZones-v2.0.0.dmg 与 Release Notes 内容，输出 GitHub 上线的 Release v2.0.0 及其 DMG 资产",
+      "invariants_and_edge_cases": "发布完成后必须立即删除 /tmp 中的 DMG 文件",
+      "implementation_steps": "打标签 git tag -a v2.0.0 并推送；gh release create 创建 Release；gh release upload 上传 DMG；删除临时 DMG",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "gh release view v2.0.0 --repo jiezhengj/MacsyZones",
+          "expected_result": "MacsyZones-v2.0.0.dmg"
+        }
+      ],
+      "completion_evidence": "GitHub Release 正式创建且 DMG 资产挂载在 Release 页面上",
+      "stop_conditions": "若 gh 未登录或权限不足，停止并报告阻断",
+      "handoff": "交接给 T018 进行最终台账同步"
+    },
+    {
+      "id": "T018",
+      "objective": "更新 RELEASES.md 版本台账为“已发布”并推送",
+      "traceability": "FR-015, SC-008, RELEASES.md 维护规则",
+      "context_summary": "将 RELEASES.md 中的“当前已发布版本”更新为 v2.0.0，在发布历史表格中将 v2.0.0 的状态更新为“已发布”，并提交、推送到 origin custom。",
+      "preconditions": {
+        "dependency_task_ids": [
+          "T017"
+        ]
+      },
+      "allowed_files": [
+        "RELEASES.md"
+      ],
+      "read_only_references": [
+        "RELEASES.md",
+        "AGENTS.md"
+      ],
+      "forbidden_changes": "禁止在未成功上传 GitHub Release 的情况下提前标记为“已发布”",
+      "inputs_outputs": "输入处于“计划中”的 RELEASES.md，输出处于“已发布”且已推送到远端的 RELEASES.md",
+      "invariants_and_edge_cases": "该文档中的已发布版本号必须与 git tag、Xcode MARKETING_VERSION 和 GitHub Release 保持绝对一致",
+      "implementation_steps": "修改当前已发布版本为 v2.0.0；状态修改为已发布；设置下一目标；提交并推送 RELEASES.md",
+      "verification": [
+        {
+          "kind": "command",
+          "command": "git grep \"当前已发布版本：`v2.0.0`\" RELEASES.md",
+          "expected_result": "v2.0.0"
+        }
+      ],
+      "completion_evidence": "RELEASES.md 变更已推送到 GitHub custom 分支",
+      "stop_conditions": "无",
+      "handoff": "全链路工作闭环"
+    }
+  ]
+}

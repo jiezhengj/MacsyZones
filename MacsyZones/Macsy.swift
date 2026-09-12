@@ -32,20 +32,35 @@ var movingWindowInfo: (element: AXUIElement, windowId: UInt32)?
 var isMovingAWindow = false
 var draggedWindowElement: AXUIElement?
 var draggedWindowInitialPosition: CGPoint?
+var dragSessionState = DragSessionState()
+var snapKeyFittingActive = false
+// Set when the user cancels snapping mid-drag (e.g. right-click) so auto-snap
+// does not re-activate on subsequent mouse movement. Reset at drag start/end.
+var snapSuppressedForDrag = false
+
+let defaultOverlayCollectionBehavior: NSWindow.CollectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
 var windowMovingOnScreen: NSScreen? = nil
 var placedWindowMoveStartPosition: CGPoint?
 
 func setIsFitting(_ fitting: Bool) {
     isFitting = fitting
+    if !fitting {
+        snapKeyFittingActive = false
+        clearZoneSpan()
+    }
 }
 
-func isSnapKeyPressed() -> Bool {
-    guard appSettings.snapKey != "None" else { return false }
-    
+// Sections accumulated while the span key is held during a drag (zone layouts only).
+// On mouse up the window snaps to the bounding box (union) of these sections.
+var spannedSectionWindows: [SectionWindow] = []
+
+func isSpanKeyPressed() -> Bool {
+    guard appSettings.enableZoneSpanning else { return false }
+
     let currentFlags = NSEvent.modifierFlags
-    
-    switch appSettings.snapKey {
+
+    switch appSettings.spanKey {
     case "Shift":
         return currentFlags.contains(.shift)
     case "Control":
@@ -59,10 +74,76 @@ func isSnapKeyPressed() -> Bool {
     }
 }
 
-func checkSnapKeyOnWindowMoveStart() {
-    if !macsyReady.isReady { return }
+func clearZoneSpan() {
+    spannedSectionWindows.removeAll()
+}
 
-    if isSnapKeyPressed() && !isFitting {
+/// AX-coordinate rect (top-left origin) of a section's preview window.
+func getAXRect(for window: NSWindow) -> NSRect? {
+    guard let origin = getAXPosition(for: window) else { return nil }
+    return NSRect(origin: origin, size: window.frame.size)
+}
+
+/// Bounding box of all spanned sections in AX coordinates, or nil if fewer than two.
+func spannedAXRect() -> NSRect? {
+    guard spannedSectionWindows.count > 1 else { return nil }
+    let rects = spannedSectionWindows.compactMap { getAXRect(for: $0.window) }
+    guard let first = rects.first else { return nil }
+    return rects.dropFirst().reduce(first) { $0.union($1) }
+}
+
+/// Re-applies hover highlight across the whole spanned set (getHoveredSectionWindow only marks one).
+func applyZoneSpanHighlight() {
+    guard !spannedSectionWindows.isEmpty else { return }
+    for sectionWindow in userLayouts.currentLayout.layoutWindow.sectionWindows {
+        sectionWindow.isHovered = spannedSectionWindows.contains { $0 === sectionWindow }
+    }
+    for sectionWindow in spannedSectionWindows {
+        sectionWindow.window.orderFront(nil)
+    }
+}
+
+func modifierFlags(for keyName: String) -> NSEvent.ModifierFlags? {
+    switch keyName {
+    case "Shift":
+        return .shift
+    case "Control":
+        return .control
+    case "Command":
+        return .command
+    case "Option":
+        return .option
+    default:
+        return nil
+    }
+}
+
+func isSnapKeyPressed(in flags: NSEvent.ModifierFlags = NSEvent.modifierFlags) -> Bool {
+    guard let snapKey = modifierFlags(for: appSettings.snapKey) else { return false }
+    return flags.contains(snapKey)
+}
+
+@MainActor
+func handleSnapKeyChanged(isPressed: Bool) {
+    dragSessionState.snapKeyChanged(isPressed: isPressed)
+    syncSnapKeyOverlay()
+}
+
+@MainActor
+private func syncSnapKeyOverlay() {
+    guard macsyReady.isReady else { return }
+
+    let wantsOverlay: Bool
+    if appSettings.snapWhileDragging {
+        let isDragging = dragSessionState.isDragging || isMovingAWindow
+        wantsOverlay = isDragging && !isSnapKeyPressed() && !snapSuppressedForDrag
+    } else {
+        wantsOverlay = dragSessionState.wantsSnapOverlay || (isMovingAWindow && isSnapKeyPressed())
+    }
+
+    if wantsOverlay {
+        guard !snapKeyFittingActive, !isFitting else { return }
+
         if appSettings.selectPerDesktopLayout {
             if let layoutName = spaceLayoutPreferences.getCurrent() {
                 userLayouts.setCurrentLayout(name: layoutName)
@@ -70,6 +151,7 @@ func checkSnapKeyOnWindowMoveStart() {
         }
 
         setIsFitting(true)
+        snapKeyFittingActive = true
 
         let currentLayout = userLayouts.currentLayout
 
@@ -80,13 +162,54 @@ func checkSnapKeyOnWindowMoveStart() {
                 currentLayout.gridLayoutWindow?.show()
                 currentLayout.gridLayoutWindow?.setAnchorAtMousePosition()
         }
+    } else if snapKeyFittingActive || (isFitting && appSettings.snapWhileDragging && (dragSessionState.isDragging || isMovingAWindow)) {
+        setIsFitting(false)
+        if !isQuickSnapping {
+            userLayouts.currentLayout.hide()
+        }
     }
+}
+
+@MainActor
+func checkSnapKeyOnWindowMoveStart() {
+    handleSnapKeyChanged(isPressed: isSnapKeyPressed())
+}
+
+@MainActor
+func resetDragSession(resetSnapKey: Bool = true) {
+    // A missed mouse-up/flags-changed event must not leave an overlay owned by
+    // the previous drag visible forever. Preserve overlays opened by other
+    // features (right click, quick snap, editor).
+    if snapKeyFittingActive {
+        userLayouts.currentLayout.hide()
+        setIsFitting(false)
+    }
+
+    if resetSnapKey {
+        dragSessionState.reset()
+    } else {
+        dragSessionState.mouseUp()
+    }
+    movingWindowInfo = nil
+    isMovingAWindow = false
+    draggedWindowElement = nil
+    draggedWindowInitialPosition = nil
+    windowMovingOnScreen = nil
+    placedWindowMoveStartPosition = nil
+    toLeaveElement = nil
+    toLeaveSectionWindow = nil
+    toLeaveGridRect = nil
+    snapSuppressedForDrag = false
+    clearZoneSpan()
 }
 
 let spaceLayoutPreferences = SpaceLayoutPreferences()
 
 func getWindowUnderMouse() -> (element: AXUIElement, windowId: UInt32)? {
-    let mouseLocation = NSEvent.mouseLocation
+    // CGWindow bounds use the Quartz (top-left) coordinate system. Using
+    // NSEvent.mouseLocation here mixes coordinate systems on multi-display
+    // setups, so ask CoreGraphics for the pointer location as well.
+    guard let mouseLocation = CGEvent(source: nil)?.location else { return nil }
     
     guard let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
         return nil
@@ -95,7 +218,8 @@ func getWindowUnderMouse() -> (element: AXUIElement, windowId: UInt32)? {
     for windowInfo in windowList {
         guard let bounds = windowInfo[kCGWindowBounds as String] as? [String: CGFloat],
               let windowLayer = windowInfo[kCGWindowLayer as String] as? Int,
-              let windowId = windowInfo[kCGWindowNumber as String] as? UInt32 else {
+              let windowId = windowInfo[kCGWindowNumber as String] as? UInt32,
+              let ownerPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t else {
             continue
         }
         
@@ -109,7 +233,7 @@ func getWindowUnderMouse() -> (element: AXUIElement, windowId: UInt32)? {
         if mouseLocation.x >= x && mouseLocation.x <= x + width &&
            mouseLocation.y >= y && mouseLocation.y <= y + height {
             
-            if let element = retrieveFreshWindowElement(for: windowId) {
+            if let element = retrieveFreshWindowElement(for: windowId, pid: ownerPID) {
                 var subroleRef: CFTypeRef?
                 if AXUIElementCopyAttributeValue(element, kAXSubroleAttribute as CFString, &subroleRef) == .success {
                     if let subrole = subroleRef as? String, subrole == kAXStandardWindowSubrole {
@@ -123,12 +247,101 @@ func getWindowUnderMouse() -> (element: AXUIElement, windowId: UInt32)? {
     return nil
 }
 
+@MainActor
 func onMouseDown(event: NSEvent) {
+    resetDragSession(resetSnapKey: false)
     draggedWindowElement = nil
     draggedWindowInitialPosition = nil
 
+    if let windowInfo = getWindowUnderMouse() {
+        draggedWindowElement = windowInfo.element
+        draggedWindowInitialPosition = getAXWindowPosition(element: windowInfo.element)
+        dragSessionState.mouseDown(candidateWindowID: windowInfo.windowId)
+        debugLog("Mouse down candidate: windowID=\(windowInfo.windowId)")
+    } else {
+        dragSessionState.mouseDown(candidateWindowID: nil)
+        debugLog("Mouse down candidate could not be resolved; AX focus fallback enabled")
+    }
+
     if let preferredLayoutName = spaceLayoutPreferences.getCurrent() {
         userLayouts.currentLayoutName = preferredLayoutName
+    }
+}
+
+func getAXWindowPosition(element: AXUIElement) -> CGPoint? {
+    var positionRef: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(element,
+                                        kAXPositionAttribute as CFString,
+                                        &positionRef) == .success,
+          let positionValue = positionRef
+    else { return nil }
+
+    var position = CGPoint.zero
+    guard AXValueGetValue(positionValue as! AXValue, .cgPoint, &position) else { return nil }
+    return position
+}
+
+@MainActor
+@discardableResult
+func beginDraggingWindow(element: AXUIElement, windowID: UInt32) -> Bool {
+    guard windowID != 0 else { return false }
+
+    if let draggedWindowID = dragSessionState.draggedWindowID {
+        guard draggedWindowID == windowID else {
+            debugLog("Rejected movement from another window during active drag: windowID=\(windowID)")
+            return false
+        }
+    } else if dragSessionState.candidateWindowID == nil {
+        guard let focusedElement = getFocusedWindowAXUIElement(),
+              getWindowID(from: focusedElement) == windowID
+        else {
+            debugLog("Rejected AX movement for non-focused windowID=\(windowID)")
+            return false
+        }
+        draggedWindowElement = element
+        draggedWindowInitialPosition = getAXWindowPosition(element: element)
+        dragSessionState.mouseDown(candidateWindowID: windowID)
+    }
+
+    guard dragSessionState.confirmWindowMovement(windowID: windowID) else {
+        debugLog("Rejected movement that does not match mouse-down candidate: windowID=\(windowID)")
+        return false
+    }
+
+    isMovingAWindow = true
+    movingWindowInfo = (element: element, windowId: windowID)
+    toLeaveElement = element
+    checkSnapKeyOnWindowMoveStart()
+
+    return true
+}
+
+@MainActor
+func updateSnapTarget(for element: AXUIElement) {
+    let currentLayout = userLayouts.currentLayout
+
+    switch currentLayout.layoutType {
+    case .zone:
+        if let hoveredSectionWindow = getHoveredSectionWindow() {
+            toLeaveElement = element
+            toLeaveSectionWindow = hoveredSectionWindow
+
+            if isFitting && isSpanKeyPressed() {
+                // Accumulate hovered sections so the window can span their union.
+                if !spannedSectionWindows.contains(where: { $0 === hoveredSectionWindow }) {
+                    spannedSectionWindows.append(hoveredSectionWindow)
+                }
+                applyZoneSpanHighlight()
+            } else {
+                clearZoneSpan()
+            }
+        }
+    case .grid:
+        if isFitting {
+            currentLayout.gridLayoutWindow?.updateSelectionToMousePosition()
+            toLeaveElement = element
+            toLeaveGridRect = currentLayout.gridLayoutWindow?.getSelectionAXRect()
+        }
     }
 }
 
@@ -141,7 +354,7 @@ func startEditing() {
 func stopEditing() {
     setIsFitting(false)
     isEditing = false
-    userLayouts.currentLayout.layoutWindow.stopEditing()
+    userLayouts.currentLayout.materializedLayoutWindow?.stopEditing()
 }
 
 @discardableResult
@@ -151,7 +364,7 @@ func toggleEditing() -> Bool {
     if isEditing {
         userLayouts.currentLayout.layoutWindow.startEditing()
     } else {
-        userLayouts.currentLayout.layoutWindow.stopEditing()
+        userLayouts.currentLayout.materializedLayoutWindow?.stopEditing()
     }
     return isEditing
 }
@@ -201,28 +414,29 @@ func getWindowID(from axElement: AXUIElement) -> UInt32? {
     }
 }
 
-private var lastWindowMoveProcessTime: TimeInterval = 0
+private var lastWindowMoveProcessTimes: [UInt32: TimeInterval] = [:]
 private let activeWindowMoveThrottle: TimeInterval = 1.0 / 120.0
 private let idleWindowMoveThrottle: TimeInterval = 0.1
 
-var shouldThrottleWindowMove: Bool {
+func shouldThrottleWindowMove(windowID: UInt32) -> Bool {
     let now = ProcessInfo.processInfo.systemUptime
     let isDragging = CGEventSource.buttonState(.hidSystemState, button: .left)
     let minInterval = isDragging ? activeWindowMoveThrottle : idleWindowMoveThrottle
+    let lastProcessTime = lastWindowMoveProcessTimes[windowID] ?? 0
 
-    if now - lastWindowMoveProcessTime < minInterval {
+    if now - lastProcessTime < minInterval {
         return true
     }
 
-    lastWindowMoveProcessTime = now
+    lastWindowMoveProcessTimes[windowID] = now
     return false
 }
 
 func onObserverNotification(observer: AXObserver, element: AXUIElement, notification: CFString, refcon: UnsafeMutableRawPointer?) {
     switch notification as String {
-    case kAXWindowMovedNotification:
-        if isEditing || isSnapResizing { return }
-        if shouldThrottleWindowMove { return }
+    case kAXMovedNotification, kAXWindowMovedNotification:
+        guard let windowID = getWindowID(from: element) else { return }
+        if shouldThrottleWindowMove(windowID: windowID) { return }
 
         var position: CGPoint = .zero
         var positionRef: CFTypeRef?
@@ -248,12 +462,11 @@ func onObserverNotification(observer: AXObserver, element: AXUIElement, notifica
         }
 
     case kAXUIElementDestroyedNotification:
-        var pid: pid_t = 0
-        guard AXUIElementGetPid(element, &pid) == .success,
-              let windowID = getWindowID(from: element)
-        else { return }
         Task { @MainActor in
-            WindowObserverManager.shared.forgetWindow(pid: pid, windowID: windowID)
+            // The destroyed AX element may no longer answer PID/window-ID
+            // queries. The manager resolves it from the element registered
+            // before destruction instead.
+            WindowObserverManager.shared.forgetWindow(element: element)
         }
 
     default:
@@ -281,7 +494,7 @@ func getHoveredSectionWindow() -> SectionWindow? {
     
     guard let focusedScreen = getFocusedScreen() else {
         for layout in userLayouts.layouts.values {
-            for sectionWindow in layout.layoutWindow.sectionWindows {
+            for sectionWindow in layout.materializedLayoutWindow?.sectionWindows ?? [] {
                 sectionWindow.isHovered = false
             }
         }
@@ -353,8 +566,15 @@ func getHoveredSectionWindow() -> SectionWindow? {
         }
     }
 
-    for sectionWindow in userLayouts.currentLayout.layoutWindow.sectionWindows {
-        sectionWindow.isHovered = (sectionWindow === hoveredSectionWindow)
+    let currentSectionWindows = userLayouts.currentLayout.layoutWindow.sectionWindows
+    let hovered = hoveredSectionWindow
+    DispatchQueue.main.async {
+        for sectionWindow in currentSectionWindows {
+            let shouldBeHovered = (sectionWindow === hovered)
+            if sectionWindow.isHovered != shouldBeHovered {
+                sectionWindow.isHovered = shouldBeHovered
+            }
+        }
     }
     
     if let hoveredSectionWindow = hoveredSectionWindow {
@@ -364,22 +584,52 @@ func getHoveredSectionWindow() -> SectionWindow? {
     return hoveredSectionWindow
 }
 
+@MainActor
 func onWindowMoved(observer: AXObserver, element: AXUIElement, notification: CFString, title: String, position: CGPoint) {
     guard macsyReady.isReady else { return }
 
+    guard !isEditing,
+          !isSnapResizing,
+          !isQuickSnapping
+    else { return }
+
+    var subroleRef: CFTypeRef?
+    AXUIElementCopyAttributeValue(element, kAXSubroleAttribute as CFString, &subroleRef)
+    let subrole = subroleRef as? String ?? "Unknown"
+    guard subrole == kAXStandardWindowSubrole else { return }
+
+    var roleRef: CFTypeRef?
+    AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef)
+    let role = roleRef as? String ?? "Unknown"
+    guard role == kAXWindowRole else {
+        debugLog("Element is not a window! Role: \(role), Subrole: \(subrole)")
+        return
+    }
+
+    guard let windowId = getWindowID(from: element) else {
+        debugLog("Failed to get window ID")
+        return
+    }
+
+    if NSEvent.pressedMouseButtons & 1 != 0 {
+        guard beginDraggingWindow(element: element, windowID: windowId) else { return }
+    }
+
     if let movingOnScreen = windowMovingOnScreen {
         if let screen = getFocusedScreen(), screen != movingOnScreen {
-            movingWindowInfo = (element: element, windowId: getWindowID(from: element) ?? 0)
+            movingWindowInfo = (element: element, windowId: windowId)
             windowMovingOnScreen = screen
             
             for layout in userLayouts.layouts.values {
                 if layout.layoutType == .zone {
-                    for sectionWindow in layout.layoutWindow.sectionWindows {
+                    layout.materializedLayoutWindow?.isShown = false
+
+                    for sectionWindow in layout.materializedLayoutWindow?.sectionWindows ?? [] {
                         sectionWindow.isHovered = false
                         sectionWindow.window.orderOut(nil)
                     }
                 } else {
-                    layout.gridLayoutWindow?.hide()
+                    layout.materializedGridLayoutWindow?.hide()
                 }
             }
             
@@ -395,19 +645,22 @@ func onWindowMoved(observer: AXObserver, element: AXUIElement, notification: CFS
                     case .zone:
                         currentLayout.layoutWindow.show()
                     case .grid:
-                        isFitting = false
+                        setIsFitting(false)
                     }
             }
 
             toLeaveElement = nil
             toLeaveSectionWindow = nil
             toLeaveGridRect = nil
+            clearZoneSpan()
 
             return
         }
+    } else {
+        if let screen = getFocusedScreen() {
+            windowMovingOnScreen = screen
+        }
     }
-    
-    windowMovingOnScreen = getFocusedScreen()
     
     if appSettings.shakeToSnap && !isSwitcherUsed {
         let currentTime = Date().timeIntervalSince1970
@@ -417,56 +670,8 @@ func onWindowMoved(observer: AXObserver, element: AXUIElement, notification: CFS
             shakeMagnitudeCount = 0
         }
     }
-    
-    guard !isEditing,
-          !isSnapResizing,
-          !isQuickSnapping
-    else { return }
-    
-    var subroleRef: CFTypeRef?
-    AXUIElementCopyAttributeValue(element, kAXSubroleAttribute as CFString, &subroleRef)
-    
-    let subrole = subroleRef as? String ?? "Unknown"
-    
-    if subrole != kAXStandardWindowSubrole {
-        return
-    }
-    
-    var roleRef: CFTypeRef?
-    AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef)
-    
-    let role = roleRef as? String ?? "Unknown"
-    
-    if role != kAXWindowRole {
-        debugLog("Element is not a window! Role: \(role), Subrole: \(subrole)")
-        return
-    }
-    
-    if NSEvent.pressedMouseButtons & 1 != 0 {
-        isMovingAWindow = true
-        checkSnapKeyOnWindowMoveStart()
-    }
 
-    let currentLayout = userLayouts.currentLayout
-
-    switch currentLayout.layoutType {
-        case .zone:
-            if let hoveredSectionWindow = getHoveredSectionWindow() {
-                toLeaveElement = element
-                toLeaveSectionWindow = hoveredSectionWindow
-            }
-        case .grid:
-            if isFitting {
-                currentLayout.gridLayoutWindow?.updateSelectionToMousePosition()
-                toLeaveElement = element
-                toLeaveGridRect = currentLayout.gridLayoutWindow?.getSelectionAXRect()
-            }
-    }
-    
-    guard let windowId = getWindowID(from: element) else {
-        debugLog("Failed to get window ID")
-        return
-    }
+    updateSnapTarget(for: element)
     
     let isPlaced = PlacedWindows.isPlaced(windowId: windowId)
     let originalSize = OriginalWindowProperties.getWindowSize(for: windowId)
@@ -828,11 +1033,12 @@ func resizeWindow(element: AXUIElement, newSize: CGSize) {
     }
 }
 
-func retrieveFreshWindowElement(for windowId: UInt32) -> AXUIElement? {
+func retrieveFreshWindowElement(for windowId: UInt32, pid targetPID: pid_t? = nil) -> AXUIElement? {
     debugLog("Attempting to retrieve fresh window element for window ID: \(windowId)")
     
     let runningApps = NSWorkspace.shared.runningApplications.filter {
-        $0.activationPolicy == .regular
+        $0.activationPolicy == .regular &&
+        (targetPID == nil || $0.processIdentifier == targetPID)
     }
     
     for app in runningApps {
@@ -942,27 +1148,61 @@ func getFocusedWindowAXUIElement() -> AXUIElement? {
     return focusedWindow as! AXUIElement?
 }
 
+@MainActor
 func onMouseDragged(event: NSEvent) {
+    guard macsyReady.isReady,
+          !isEditing,
+          !isSnapResizing,
+          !isQuickSnapping
+    else { return }
+
+    var candidateElement = draggedWindowElement
+
+    if candidateElement == nil, let windowInfo = getWindowUnderMouse() {
+        candidateElement = windowInfo.element
+        draggedWindowElement = windowInfo.element
+        draggedWindowInitialPosition = getAXWindowPosition(element: windowInfo.element)
+        dragSessionState.mouseDown(candidateWindowID: windowInfo.windowId)
+    }
+
+    guard let element = candidateElement,
+          let windowID = getWindowID(from: element)
+    else { return }
+
+    if !dragSessionState.isDragging {
+        guard let currentPosition = getAXWindowPosition(element: element) else { return }
+
+        guard let initialPosition = draggedWindowInitialPosition else {
+            draggedWindowInitialPosition = currentPosition
+            return
+        }
+
+        let distanceMoved = hypot(currentPosition.x - initialPosition.x,
+                                  currentPosition.y - initialPosition.y)
+        guard distanceMoved > 5 else { return }
+
+        guard beginDraggingWindow(element: element, windowID: windowID) else { return }
+        debugLog("Detected window drag via mouse fallback: windowID=\(windowID)")
+    }
+
+    guard dragSessionState.draggedWindowID == windowID else { return }
+    updateSnapTarget(for: element)
 }
 
+@MainActor
 func onMouseUp(event: NSEvent) {
     guard macsyReady.isReady else { return }
+    defer { resetDragSession(resetSnapKey: false) }
 
-    movingWindowInfo = nil
-    isMovingAWindow = false
+    dragSessionState.mouseUp()
     placedWindowMoveStartPosition = nil
     previousPosition = nil
     previousVelocity = nil
     previousTime = nil
-    lastShakeTime = Date().timeIntervalSince1970 + 0.75
 
-    guard !isQuickSnapping,
-          isFitting
-    else { return }
+    isMovingAWindow = false
 
-    if isEditing || isSnapResizing || isQuickSnapping {
-        setIsFitting(false)
-    }
+    if !isFitting { return }
 
     let currentLayout = userLayouts.currentLayout
 
@@ -972,32 +1212,61 @@ func onMouseUp(event: NSEvent) {
     case .grid:
         handleGridMouseUp()
     }
-
-    draggedWindowElement = nil
-    draggedWindowInitialPosition = nil
 }
 
 private func handleZoneMouseUp() {
+    toLeaveElement = toLeaveElement ?? draggedWindowElement ?? getFocusedWindowAXUIElement()
+
+    // Span across multiple zones: snap to the bounding box of the accumulated sections.
+    if isFitting, let unionRect = spannedAXRect() {
+        guard let window = toLeaveElement, let windowId = getWindowID(from: window) else {
+            setIsFitting(false)
+            toLeaveElement = nil
+            toLeaveSectionWindow = nil
+            clearZoneSpan()
+            userLayouts.currentLayout.materializedLayoutWindow?.hide()
+            return
+        }
+
+        OriginalWindowProperties.update(windowID: windowId)
+
+        resizeAndMoveWindow(element: window,
+                            newPosition: unionRect.origin,
+                            newSize: unionRect.size,
+                            retries: 10)
+
+        if let (screenNumber, workspaceNumber) = SpaceLayoutPreferences.getCurrentScreenAndSpace() {
+            PlacedWindows.place(windowId: windowId,
+                                screenNumber: screenNumber,
+                                workspaceNumber: workspaceNumber,
+                                layoutName: userLayouts.currentLayoutName,
+                                sectionNumber: spannedSectionWindows.first?.number ?? -1,
+                                element: window)
+        }
+
+        justDidMouseUp = true
+        setIsFitting(false)
+        clearZoneSpan()
+        userLayouts.currentLayout.materializedLayoutWindow?.hide()
+        return
+    }
+
     if let hoveredSectionWindow = getHoveredSectionWindow() {
         toLeaveSectionWindow = hoveredSectionWindow
     }
-
-    // Mirror handleGridMouseUp: resolve the element from multiple fallback sources
-    // so snap still works even if onWindowMoved didn't set toLeaveElement.
-    toLeaveElement = toLeaveElement ?? draggedWindowElement ?? getFocusedWindowAXUIElement()
 
     guard let window = toLeaveElement else {
         setIsFitting(false)
         toLeaveElement = nil
         toLeaveSectionWindow = nil
-        userLayouts.currentLayout.layoutWindow.hide()
+        userLayouts.currentLayout.materializedLayoutWindow?.hide()
         return
     }
     guard let windowId = getWindowID(from: window) else {
         setIsFitting(false)
         toLeaveElement = nil
         toLeaveSectionWindow = nil
-        userLayouts.currentLayout.layoutWindow.hide()
+        userLayouts.currentLayout.materializedLayoutWindow?.hide()
         return
     }
 
@@ -1020,12 +1289,12 @@ private func handleZoneMouseUp() {
         }
 
         setIsFitting(false)
-        userLayouts.currentLayout.layoutWindow.hide()
+        userLayouts.currentLayout.materializedLayoutWindow?.hide()
     } else {
         setIsFitting(false)
         toLeaveElement = nil
         toLeaveSectionWindow = nil
-        userLayouts.currentLayout.layoutWindow.hide()
+        userLayouts.currentLayout.materializedLayoutWindow?.hide()
     }
 }
 

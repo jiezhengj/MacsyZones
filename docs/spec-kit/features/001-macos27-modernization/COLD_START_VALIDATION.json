@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "feature_id": "001-macos27-modernization",
+  "result": "EXECUTABLE",
+  "generated_at": "2026-09-12T12:07:00Z",
+  "task_package_sha256": "0c5b1ebd33d3ae1a3075b62cdf6c84784769bab5decd5e709e0dfdb66b668cd4",
+  "minimum_samples": 3,
+  "isolation": {
+    "originating_conversation_provided": false,
+    "repository_access": "read-only",
+    "supplied_context": "declared-task-and-references-only"
+  },
+  "reviews": [
+    {
+      "task_id": "T001",
+      "classification": "EXECUTABLE",
+      "evidence": "Task declares exact allowed file project.pbxproj, exact deployment target change to 27.0, exact registration steps, and executable grep verification."
+    },
+    {
+      "task_id": "T006",
+      "classification": "EXECUTABLE",
+      "evidence": "Task provides complete self-contained specification for DragSessionState.swift, cites upstream PR #102, requires no external AppKit dependencies, and defines clear states and methods."
+    },
+    {
+      "task_id": "T010",
+      "classification": "EXECUTABLE",
+      "evidence": "Task details exact files (Layout.swift, LiquidGlass.swift, Macsy.swift), exact sizingOptions = [] placements, exact DispatchQueue.main.async wrappers, and verification commands."
+    }
+  ]
+}

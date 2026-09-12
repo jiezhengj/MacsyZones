@@ -1,21 +1,506 @@
-# MacsyZones 项目指令
+# MacsyZones 项目维护指南
 
-本文件只作为 Claude Code 的入口，不复制一份独立的项目规则。
+## 项目概述
 
-开始任何任务前，必须阅读并遵守 [`AGENTS.md`](AGENTS.md)。长期有效的规则来源如下：
+这是 MacsyZones 的自定义版本，移除了所有 Pro 许可证验证和捐赠提醒功能。
 
-- [`AGENTS.md`](AGENTS.md)：工作范围、上游代码复用、测试、分支和发布执行约束。
-- [`VERSIONING.md`](VERSIONING.md)：版本级别判定、版本递增算法和新 Release/资产修复边界。
-- [`RELEASES.md`](RELEASES.md)：本项目自己的版本台账、当前已发布版本和下一发布目标。
-- [`BUILD.md`](BUILD.md)：Apple Development 签名、构建、DMG 和 GitHub Release 操作。
-- [`README.md`](README.md)：面向用户的功能和版本说明。
+**上游仓库**: https://github.com/rohanrhu/MacsyZones（仅用于同步更新，永远不会向上游推送代码或提交 PR）
+**本项目仓库**: https://github.com/jiezhengj/MacsyZones（所有推送操作的目标）
 
-关键约束：
+## ⚠️ 重要规则
 
-1. 永远不向 `rohanrhu/MacsyZones` 推送代码或提交 PR；所有 GitHub 推送只针对 `jiezhengj/MacsyZones`。
-2. 修改功能前先检查 `upstream/main` 是否已有实现，优先复用上游代码。
-3. 请求用户测试前先完成本地可执行的测试、构建和签名检查。
-4. 新代码 Release 必须先完成版本级别判定，并通过 `scripts/check-version.sh <version> <major|minor|patch>`；不能沿用旧版本号。
-5. 阶段性设计和实施过程文档已删除，不能作为版本、Release 或 Goal 状态的依据。
+1. **永远不会向上游项目推送代码或提交 PR**
+2. **当用户说"推送 GitHub"时，一定仅指推送到本项目自己的仓库 `jiezhengj/MacsyZones`**
+3. 上游仓库仅用于拉取更新，是单向同步关系
+4. **代码复用优先**：添加或修改功能时，必须先检查上游项目是否已有实现
+5. **规则文档同步维护**：每当更新项目规则文档时，必须同时更新 `AGENTS.md` 和 `CLAUDE.md`，不得只修改其中一份
 
-默认使用中文交流和编写文档。
+### 长期有效文档的权威层级
+
+- `AGENTS.md` 与 `CLAUDE.md`：本项目规则文档，内容必须保持一致并同步更新。
+- `VERSIONING.md`：版本级别判定、版本递增算法和发布/资产修复边界。
+- `RELEASES.md`：本项目自己的已发布版本、上游基线和下一发布目标。
+- `BUILD.md`：签名、构建、DMG 和 GitHub Release 的操作细节。
+- `README.md`：面向用户的功能和版本说明。
+
+阶段性设计和实施过程文档已删除；它们不是版本号、Goal 状态或 Release 规则的依据。
+
+---
+
+## 代码复用原则
+
+### 核心理念
+
+本项目是上游项目的改造版本，**必须优先复用上游代码**，而非自行重写。
+
+### 为什么必须复用
+
+1. **保持功能一致性**：避免丢失上游的错误处理、边界检查、用户体验细节
+2. **便于同步更新**：复用上游代码可以减少 rebase 时的冲突
+3. **减少维护成本**：上游的实现经过测试和验证
+4. **避免功能退化**：自行重写可能丢失上游的重要细节（如重名检查、参数验证等）
+
+### 复用优先级
+
+1. **上游已有实现** → 复用上游代码，仅做必要的汉化和适配
+2. **上游无实现** → 自行编写新功能
+3. **上游实现不适用** → 必须说明原因，再自行编写
+
+### 检查流程
+
+在添加或修改功能前，**必须执行以下检查**：
+
+```bash
+# 1. 查看上游项目中的相关文件
+git show upstream/main:MacsyZones/<文件名>.swift
+
+# 2. 搜索相关功能关键词
+git show upstream/main:MacsyZones/<文件名>.swift | grep -A <行数> "<关键词>"
+
+# 3. 如果找到上游实现，复制并汉化
+# 4. 如果未找到，再自行编写
+```
+
+### 示例：正确做法 vs 错误做法
+
+**❌ 错误做法**：直接自己写
+```
+发现按钮无反应 → 自己写一个新视图 → 丢失上游的重名检查、参数验证等功能
+```
+
+**✅ 正确做法**：先查上游
+```
+发现按钮无反应 → 检查上游 Popover.swift → 找到 RenameView/DuplicateView/NewView → 复用并汉化
+```
+
+### 特殊情况处理
+
+以下情况可以自行编写：
+- 上游确实没有该功能
+- 上游实现有明确的 bug 或缺陷
+- 上游实现与本项目架构不兼容（需说明原因）
+
+---
+
+## 测试原则
+
+### 核心理念
+
+在请求用户测试前，**必须先进行我能做的测试**，尽可能减少用户的测试负担。
+
+### Build 前测试
+
+1. **语法检查**：
+   ```bash
+   scripts/build-debug.sh
+   ```
+
+   该脚本固定使用 `Apple Development: jie.zhengj@qq.com (8SDSF987N2)`、Team ID `74FR87HYTH` 和 Bundle ID `MeowingCat.MacsyZones`，并在构建后执行签名审计。权限测试不得使用临时 Bundle ID 或 UI Harness。
+
+2. **代码逻辑验证**：
+   - 检查视图绑定是否正确（`@Binding`、`@State`、`@ObservedObject`）
+   - 验证函数调用链是否完整
+   - 确认条件判断逻辑正确（如按钮禁用条件）
+   - 检查数据流是否正确（输入 → 处理 → 输出）
+
+3. **文件完整性检查**：
+   - 验证所有修改的文件语法正确
+   - 确认没有遗漏的导入或类型引用
+   - 检查新增/删除的文件是否与项目结构一致
+
+### Build 后测试
+
+1. **运行应用并检查日志**：
+   ```bash
+   # 仅运行已通过正式签名审计的安装版本
+   scripts/verify-signing.sh /Applications/MacsyZones.app
+   /Applications/MacsyZones.app/Contents/MacOS/MacsyZones 2>&1
+   ```
+
+   不要直接运行临时目录中的 UI Harness 或自定义 Bundle ID 构建；macOS 会把它们当作新的辅助功能 TCC 客户端，导致重复授权提示。
+
+2. **检查控制台输出**：
+   - 是否有运行时错误
+   - 是否有警告信息
+   - 是否有预期的调试日志
+
+3. **自动化验证**：
+   - 检查文件是否正确写入（如配置文件）
+   - 验证状态变更是否生效
+   - 确认资源是否正确加载
+
+### 我无法测试的内容
+
+- UI 交互测试（点击按钮、查看对话框）
+- 视觉效果检查（布局、字体、颜色、动画）
+- 用户体验验证（响应速度、操作流畅度）
+- 多显示器场景测试
+- 不同 macOS 版本兼容性
+
+### 测试报告格式
+
+在请求用户测试前，应提供：
+```
+✅ 已完成的测试：
+- [x] 构建成功，无编译错误
+- [x] 代码逻辑验证通过
+- [x] 运行时无崩溃
+- [x] 日志输出正常
+
+⚠️ 需要用户验证：
+- [ ] 点击按钮是否弹出对话框
+- [ ] 对话框功能是否正常
+- [ ] 视觉效果是否符合预期
+```
+
+---
+
+## 版本号规则
+
+版本号规则、Major/Minor/Patch 的量化判定和本项目当前版本台账统一见 [`VERSIONING.md`](VERSIONING.md) 与 [`RELEASES.md`](RELEASES.md)。
+
+必须遵守以下硬规则：
+
+1. 版本级别按完整 Goal/发布范围判定，不按最后一个 commit 判定。
+2. 多种变更同时存在时采用最高级别：`Major > Minor > Patch`。
+3. 跨越两个以上核心域并重构职责边界、持久化迁移、核心 UI、更新器或签名发布边界时，至少是 Major。
+4. 回滚后的稳定代码只保留版本门禁、正式签名和可重复 DMG 构建改进，当前已发布版本是 `v1.2.5`，下一发布目标是 `v1.2.6 / Patch`；新架构和 UI 改造不得进入后续版本。
+5. 修改 `MARKETING_VERSION` 后，必须先执行：
+
+   ```bash
+   scripts/check-version.sh <target-version> <major|minor|patch>
+   ```
+
+6. 版本检查未通过时，不得构建 Release、创建 tag 或上传 GitHub Release。
+
+---
+
+## Release 规范
+
+### Release 标题格式
+
+**固定格式**：`MacsyZones 中文定制版 vx.y.z`
+
+- ❌ 禁止在标题后添加 ` - 修复XXX` 等描述性后缀
+- ✅ 示例：`MacsyZones 中文定制版 v1.2.3`
+
+### Release 正文模板
+
+**必须使用以下精确格式**，不可随意增删分隔线或修改结构：
+
+```markdown
+## vx.y.z 更新内容
+
+### <分类标题>
+- <具体内容>
+- <具体内容>
+
+---
+
+**上游版本映射**：本版本基于上游 vX.Y.Z 改造
+
+---
+
+🙏 感谢原作者 [Oğuzhan Eroğlu](https://meowingcat.io/) 的杰出工作！
+```
+
+### 正文规则
+
+1. **一级标题**：`## vx.y.z 更新内容`（如 `## v1.2.3 更新内容`）
+2. **分类标题**：使用 `###` 开头，常见分类：
+   - `### Bug 修复`
+   - `### 新功能`
+   - `### UI 优化`
+   - `### 代码清理`
+   - `### 改造内容`
+3. **分项列表**：使用 `- ` 开头，每项一行
+4. **分隔线**：使用 `---` 分隔三个区块（更新内容 / 上游映射 / 致谢）
+5. **上游映射**：`**上游版本映射**：本版本基于上游 vX.Y.Z 改造`
+6. **致谢**：`🙏 感谢原作者 [Oğuzhan Eroğlu](https://meowingcat.io/) 的杰出工作！`
+
+### 措辞规范
+
+- ✅ 推荐：感谢原作者的杰出工作
+- ❌ 避免：购买正版、支持开发者（显得像在做盗版）
+
+### 创建 Release 的完整流程
+
+**每次发布 Release 必须执行以下全部步骤**，不可跳过：
+
+**步骤 1：登记版本决策并更新版本号**
+
+先在 [`RELEASES.md`](RELEASES.md) 登记下一发布目标和级别，再更新 Xcode 项目版本号。当前回滚后的发布目标是 `v1.2.6 / Patch`。
+
+```bash
+targetVersion=1.2.6
+bumpLevel=patch
+sed -i '' "s/MARKETING_VERSION = .*/MARKETING_VERSION = ${targetVersion};/g" MacsyZones.xcodeproj/project.pbxproj
+scripts/check-version.sh "$targetVersion" "$bumpLevel"
+```
+
+**步骤 2：构建 Release 版本**
+```bash
+scripts/build-release-dmg.sh "$targetVersion" "$bumpLevel"
+```
+
+**步骤 3：验证签名**
+```bash
+# build-release-dmg.sh 已在创建 DMG 前自动完成正式签名审计。
+# 如需复核已安装版本：
+bash scripts/verify-signing.sh /Applications/MacsyZones.app
+```
+必须确认：
+- `Authority=Apple Development: jie.zhengj@qq.com (8SDSF987N2)`
+- 证书 SHA-1=`C7C84AAA3B67FACEA73042570A0BA2FC3D19E613`
+- `Identifier=MeowingCat.MacsyZones`
+- `TeamIdentifier=74FR87HYTH`
+
+注：Xcode 27 的 `codesign -dv --verbose=4` 可能不再输出单独的 `Signature=Apple Development` 行，以完整的 `Authority`、`Identifier` 和 `TeamIdentifier` 为准。
+
+**步骤 4：验证 DMG（在临时目录）**
+```bash
+hdiutil verify /tmp/MacsyZones-vx.y.z.dmg
+```
+
+`scripts/build-release-dmg.sh` 已在 `/tmp` 中完成 App 签名审计、DMG 创建和镜像信息校验。
+- DMG 文件名格式：`MacsyZones-vx.y.z.dmg`（如 `MacsyZones-v1.2.3.dmg`）
+- ⚠️ **DMG 必须创建在 `/tmp/` 目录，绝对不能放在项目文件夹里**
+
+**步骤 5：提交代码并推送 `custom`**
+```bash
+git add <source-files> MacsyZones.xcodeproj/project.pbxproj RELEASES.md
+git commit -m "<提交信息>"
+git push origin custom
+```
+- ⚠️ **绝对不要 `git add` DMG 文件**，DMG 不属于 Git 版本管理
+
+**步骤 6：创建 tag 并推送**
+```bash
+git tag -a vx.y.z -m "vx.y.z: <简要描述>"
+git push origin vx.y.z
+```
+
+**步骤 7：创建 GitHub Release 并上传 DMG**
+```bash
+# 创建 release
+gh release create "v${targetVersion}" \
+  --repo jiezhengj/MacsyZones \
+  --title "MacsyZones 中文定制版 v${targetVersion}" \
+  --notes "## v${targetVersion} 更新内容
+...
+"
+
+# 上传 DMG
+gh release upload "v${targetVersion}" "/tmp/MacsyZones-v${targetVersion}.dmg" --repo jiezhengj/MacsyZones --clobber
+
+# 上传完成后删除 DMG
+rm -f "/tmp/MacsyZones-v${targetVersion}.dmg"
+```
+
+**步骤 8：发布后更新台账**
+
+确认 GitHub Release 页面和 DMG 下载成功后，将 `RELEASES.md` 中的版本状态改为“已发布”，更新“当前已发布版本”，再提交并推送该文档变更。未创建 GitHub Release 的版本不得写入“已发布”。
+
+如果 GitHub CLI 未登录、token 失效或 Release 资产无法验证，必须停止发布并报告阻塞，不能把本地 DMG 或 tag 当成已完成 Release。
+
+### DMG 文件规则
+
+- ⚠️ DMG 文件**绝对禁止**放在项目文件夹内
+- ⚠️ DMG 文件**绝对禁止**纳入 Git 版本管理
+- DMG 全程在 `/tmp/` 目录创建和使用
+- Release 上传完成后**必须立即删除**本地 DMG 文件
+
+---
+
+## 版本号管理
+
+`MARKETING_VERSION` 是 App 版本唯一构建来源；关于界面从 `Info.plist` 自动读取，不需要单独修改。
+
+不要把“当前项目版本”“最近已发布版本”和“上游版本”混为一谈：
+
+- 当前项目构建版本：以 `project.pbxproj` 为准。
+- 最近已发布版本和下一发布目标：以 `RELEASES.md` 为准。
+- 上游基线：只记录用于同步的上游版本，不参与本项目递增计算。
+- 任何新代码 Release 都必须通过 `scripts/check-version.sh`；资产修复例外仅适用于同一代码、同一 tag 的 DMG 替换。
+
+---
+
+## 问题1：如何同步上游更新而不重复改造
+
+### 分支策略
+
+```
+custom   ← 默认分支，你的改造版本
+upstream ← 上游仓库（rohanrhu/MacsyZones），仅用于拉取更新
+```
+
+### 当前状态
+
+- **默认分支**: `custom`
+- **上游仓库**: `rohanrhu/MacsyZones`（只读，永不推送）
+- **本项目仓库**: `jiezhengj/MacsyZones`（所有推送的目标）
+
+### 同步上游更新（每次需要更新时执行）
+
+```bash
+# 方法1：使用同步脚本
+./sync-upstream.sh
+
+# 方法2：手动执行
+git checkout main
+git pull upstream main        # 拉取上游最新代码
+git checkout custom
+git rebase main               # 将改造应用到最新代码上
+
+# 如果有冲突，解决冲突后：
+git add <resolved-files>
+git rebase --continue
+```
+
+### 冲突解决指南
+
+改造涉及的文件：
+- `App.swift` - 移除 `macsyProLock` 和 `donationReminder` 实例
+- `States.swift` - 移除 `donationReminder.count()` 调用
+- `SettingsView.swift` - 集成布局管理 UI（原 Popover.swift 功能）
+
+**注意**：上游的 `Popover.swift` 已被删除，其功能已迁移至 `SettingsView.swift`。同步时需检查上游 `Popover.swift` 的新增功能是否需要迁移到 `SettingsView.swift`。
+
+**冲突解决原则**：
+1. 保留上游的新功能和bug修复
+2. 重新应用移除 Pro/捐赠的改造
+3. 如果上游新增了 Pro 相关功能，一并移除
+4. 上游 `Popover.swift` 的功能变更需同步到 `SettingsView.swift`
+
+---
+
+## 问题2：如何保留用户配置
+
+### 配置存储位置
+
+```
+~/Library/Application Support/MeowingCat.MacsyZones/
+```
+
+### 配置文件清单
+
+| 文件 | 内容 | 重要性 |
+|------|------|--------|
+| `UserLayouts.json` | 自定义窗口布局 | ⭐⭐⭐ 核心配置 |
+| `AppSettings.json` | 应用设置（快捷键、行为等） | ⭐⭐⭐ 核心配置 |
+| `SpaceLayoutPreferences.json` | 桌面布局偏好 | ⭐⭐ 重要 |
+| `UpdateState.json` | 更新状态 | ⭐ 可重建 |
+
+### 替换 App 时的配置保留
+
+**关键原则**：只要 `bundleIdentifier` 保持不变，配置就会自动保留。
+
+当前 `bundleIdentifier`: `MeowingCat.MacsyZones`
+
+**安全替换步骤**：
+1. 构建你的改造版本（Xcode → Product → Archive）
+2. 导出 App 文件
+3. 退出当前运行的 MacsyZones
+4. 直接替换 `/Applications/MacsyZones.app`
+5. 重新启动 app
+
+**验证配置保留**：
+```bash
+# 检查配置文件是否存在
+ls -la ~/Library/Application\ Support/MeowingCat.MacsyZones/
+```
+
+### 备份建议
+
+在替换前备份配置：
+```bash
+cp -r ~/Library/Application\ Support/MeowingCat.MacsyZones ~/Desktop/MacsyZones-backup
+```
+
+---
+
+## 已移除的组件
+
+### 删除的文件
+- `ProLock.swift` - Pro 许可证验证系统
+- `PubKey.swift` - 许可证签名公钥
+- `DonationReminder.swift` - 捐赠提醒弹窗
+
+### 修改的文件
+- `App.swift` - 移除全局实例
+- `States.swift` - 移除触发点
+- `SettingsView.swift` - 集成布局管理 UI（替代原 Popover.swift）
+
+### 删除的文件（改造过程中）
+- `Popover.swift` - 原 UI 组件，功能已迁移至 SettingsView.swift
+
+---
+
+## 快速参考
+
+### 日常工作流程
+
+```bash
+# 检查上游更新
+git fetch upstream
+git log main..upstream/main --oneline
+
+# 同步更新
+./sync-upstream.sh
+
+# 构建并替换
+# Xcode → Product → Archive → 导出 → 替换 /Applications/
+```
+
+### 紧急回滚
+
+如果新版本有问题：
+```bash
+# 回滚到上一个 custom 版本
+git checkout custom
+git log --oneline  # 找到上一个好的提交
+git reset --hard <commit-hash>
+# 重新构建
+```
+
+---
+
+## 相关文档
+
+- [README.md](README.md) - 原始项目说明
+- [CONTRIBUTING.md](CONTRIBUTING.md) - 贡献指南
+- [LICENSE](LICENSE) - GPL-3.0 许可证
+
+<!-- PROJECT-SPEC-KIT-GOVERNANCE:START -->
+
+# Spec Kit Governance
+
+This repository uses the committed project-local Spec Kit governance package.
+
+Read `docs/spec-kit/START_HERE.md` before substantive engineering work.
+
+A conversational approval such as `the plan is acceptable` advances a direction into the upstream Spec Kit workflow; it does not authorize direct application-code edits before the current Spec Kit artifacts are aligned.
+
+The governance package does not edit `.specify/**`, `specs/**`, or native Agent-generated integration files.
+
+Do not replace the project baseline with personal global rules or a local Reference.
+
+Project documentation language: `zh-CN`.
+
+Write new and substantively rewritten project documentation, including Spec Kit artifacts, in this language unless an explicit user or more specific project instruction overrides it. Do not translate existing documentation solely because this setting was selected.
+
+<!-- PROJECT-SPEC-KIT-GOVERNANCE:END -->
+
+<!-- PROJECT-SPEC-KIT-REFERENCE-UPDATE-CHECK:START version=1 -->
+
+# Spec Kit Reference update check
+
+This check is active only when the current Agent has loaded the global Spec Kit Policy and that Policy provides a readable `SPEC_KIT_GOVERNANCE_SOURCE` absolute path.
+
+When `.specify/` and the committed project governance package are present, run the local governance manager's read-only `check-update --source <central-reference-path>` once before the first substantive task in a new Agent session. If the Policy or source locator is absent, skip this check silently; do not scan the computer for a Reference directory.
+
+If a verified Reference update is available, tell the user and wait for explicit approval before staging and applying a `plan-upgrade`. The sync may update only Reference-owned governance files and this managed block; it must never edit `.specify/**`, `specs/**`, native Agent files, or business code. After the governance sync, let the upstream Spec Kit workflow decide whether any specification, plan, or task artifacts need updating.
+
+A missing source, unclean source, invalid verification, offline check, or timeout is non-blocking in normal project work and must not be presented as an available update.
+
+<!-- PROJECT-SPEC-KIT-REFERENCE-UPDATE-CHECK:END -->
