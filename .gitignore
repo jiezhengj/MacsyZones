@@ -1,7 +1,25 @@
+# 操作系统
 .DS_Store
-MacsyZones.xcodeproj/project.xcworkspace/xcuserdata/oguzhan.xcuserdatad/UserInterfaceState.xcuserstate
-MacsyZones.xcodeproj/xcuserdata/oguzhan.xcuserdatad/xcdebugger/Breakpoints_v2.xcbkptlist
+**/.DS_Store
+
+# Xcode 用户特定配置与编译衍生（通用规则，废弃个人硬编码）
+xcuserdata/
+**/xcuserdata/
+*.xcuserstate
+**/*.xcuserstate
+*.xcscmblueprint
+DerivedData/
 build/
+.build/
+
+# 关键防御：本地构建与打包发布产物（防止历史 DMG 恶性膨胀重演）
+*.dmg
+*.pkg
+*.app
+*.dSYM.zip
+*.ipa
+
+# 现代编辑器与补全环境
 .vscode/
 buildServer.json
 *.code-workspace
