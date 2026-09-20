@@ -1,6 +1,7 @@
 # 操作系统
 .DS_Store
 **/.DS_Store
+/.spec-kit-governance/
 
 # Xcode 用户特定配置与编译衍生（通用规则，废弃个人硬编码）
 xcuserdata/
