@@ -1,0 +1,1 @@
+../../../.specify/extensions/governance-discovery/.specify-dev/agent-commands/agy/speckit-governance-discovery-task-readiness/SKILL.md
