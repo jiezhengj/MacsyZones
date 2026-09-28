@@ -24,3 +24,4 @@ build/
 buildServer.json
 *.code-workspace
 .compile
+/.agent-state/spec_kit_component_update_cache.json
