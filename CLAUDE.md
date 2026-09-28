@@ -13,11 +13,11 @@
 2. **当用户说"推送 GitHub"时，一定仅指推送到本项目自己的仓库 `jiezhengj/MacsyZones`**
 3. 上游仓库仅用于拉取更新，是单向同步关系
 4. **代码复用优先**：添加或修改功能时，必须先检查上游项目是否已有实现
-5. **规则文档同步维护**：每当更新项目规则文档时，必须同时更新 `AGENTS.md` 和 `CLAUDE.md`，不得只修改其中一份
+5. Spec Kit 的共享规则以根目录 `AGENTS.md` 为准；本文件保留 MacsyZones 的维护、构建和发布说明，不复制 Spec Kit 流程规则。
 
 ### 长期有效文档的权威层级
 
-- `AGENTS.md` 与 `CLAUDE.md`：本项目规则文档，内容必须保持一致并同步更新。
+- `AGENTS.md`：本项目共享规则和 Spec Kit 流程的唯一权威来源。
 - `VERSIONING.md`：版本级别判定、版本递增算法和发布/资产修复边界。
 - `RELEASES.md`：本项目自己的已发布版本、上游基线和下一发布目标。
 - `BUILD.md`：签名、构建、DMG 和 GitHub Release 的操作细节。
@@ -472,35 +472,7 @@ git reset --hard <commit-hash>
 - [LICENSE](LICENSE) - GPL-3.0 许可证
 
 <!-- PROJECT-SPEC-KIT-GOVERNANCE:START -->
+# Spec Kit 项目规则
 
-# Spec Kit Governance
-
-This repository uses the committed project-local Spec Kit governance package.
-
-Read `docs/spec-kit/START_HERE.md` before substantive engineering work.
-
-A conversational approval such as `the plan is acceptable` advances a direction into the upstream Spec Kit workflow; it does not authorize direct application-code edits before the current Spec Kit artifacts are aligned.
-
-The governance package does not edit `.specify/**`, `specs/**`, or native Agent-generated integration files.
-
-Do not replace the project baseline with personal global rules or a local Reference.
-
-Project documentation language: `zh-CN`.
-
-Write new and substantively rewritten project documentation, including Spec Kit artifacts, in this language unless an explicit user or more specific project instruction overrides it. Do not translate existing documentation solely because this setting was selected.
-
+Spec Kit 会话检查、Feature SDD、Bug Fix 和 Assessment 规则以根目录 `AGENTS.md` 的受管规则块为准。本文件继续保留 MacsyZones 专属的维护、构建和发布约束。
 <!-- PROJECT-SPEC-KIT-GOVERNANCE:END -->
-
-<!-- PROJECT-SPEC-KIT-REFERENCE-UPDATE-CHECK:START version=1 -->
-
-# Spec Kit Reference update check
-
-This check is active only when the current Agent has loaded the global Spec Kit Policy and that Policy provides a readable `SPEC_KIT_GOVERNANCE_SOURCE` absolute path.
-
-When `.specify/` and the committed project governance package are present, run the local governance manager's read-only `check-update --source <central-reference-path>` once before the first substantive task in a new Agent session. If the Policy or source locator is absent, skip this check silently; do not scan the computer for a Reference directory.
-
-If a verified Reference update is available, tell the user and wait for explicit approval before staging and applying a `plan-upgrade`. The sync may update only Reference-owned governance files and this managed block; it must never edit `.specify/**`, `specs/**`, native Agent files, or business code. After the governance sync, let the upstream Spec Kit workflow decide whether any specification, plan, or task artifacts need updating.
-
-A missing source, unclean source, invalid verification, offline check, or timeout is non-blocking in normal project work and must not be presented as an available update.
-
-<!-- PROJECT-SPEC-KIT-REFERENCE-UPDATE-CHECK:END -->

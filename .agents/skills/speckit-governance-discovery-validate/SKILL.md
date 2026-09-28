@@ -1,1 +1,0 @@
-../../../.specify/extensions/governance-discovery/.specify-dev/agent-commands/agy/speckit-governance-discovery-validate/SKILL.md
