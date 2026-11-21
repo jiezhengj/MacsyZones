@@ -151,6 +151,17 @@ git show upstream/main:MacsyZones/<文件名>.swift | grep -A <行数> "<关键�
 - [ ] 视觉效果是否符合预期
 ```
 
+### 权限排障（macOS 27）
+
+macOS 27 把原来的「辅助功能」拆成两个面板：**系统与应用保护覆盖**（控制其他 app，本项目的吸附/拖动依赖它）和**辅助功能**（只收系统认定的辅助技术 app）。授权入口在「系统设置 → 隐私与安全性」，两者都可能在 27.x 的小版本里再次改名，排障时以系统实际显示的名称为准，不要照抄文档里的历史叫法。
+
+- **授权只能由人完成**：`kTCCServiceAccessibility` 从 macOS 27 起不再允许程序主动弹授权框（`tccd` 日志会写 `does not allow prompting; returning preflight_unknown`），toggle 变更通常还要 Touch ID 或密码。自动化排障脚本、Agent、CI 都无法绕过这一步；遇到 `AXIsProcessTrustedWithOptions` 返回 false 或 `AXErrorAPIDisabled (-25211)` 时，先确认用户真的在面板里为该 app 打开了开关，再谈代码问题。
+- **按可执行文件授权是常态**：新系统可能按 `.app` 与 `Contents/MacOS/<binary>` 分别记账，只授一层会出现「设置里明明开着却不生效」。怀疑这一步时，把 app 和它的可执行文件都加进去，再重启 app。
+- **自动化 GUI 操作的前置条件**：在本机用 `osascript` 驱动「系统设置」或跑 `agent-desktop` 需要**宿主 app**（Terminal、iTerm、DeepSeek Harness 等）本身有辅助功能授权，否则报 `-1719 不允许辅助访问` 或 `accessibility.state = denied`。`sudo` 非交互不可用，读不了系统 TCC 库，不要在这条路上浪费时间。
+- **先用项目自带的诊断，再开 GUI**：`bash scripts/check_permission_model.sh`（纯静态，50 条断言 + `#available` 计数）、`bash scripts/permission-smoke.sh`（日志、进程、探针耗时）、`~/Applications/MacsyZones-dbg.app`（`scripts/build-permission-artifact.sh` 产出的固定验证副本）。运行期日志用 `log stream --predicate 'subsystem == "MeowingCat.MacsyZones" AND category == "permissions"'`，字段为 `capability/probe/target/status/axError/latencyMs/trigger`。
+- **登录后短时误判是已知系统行为**：登录风暴期 `tccd` 可能因 fd 耗尽对已授权服务返回 denied（社区已报 FB24757092）。本项目用「距进程启动 60 秒内进入可疑态、不弹引导」宽限来吸收，排障时看到 `trigger=launch` 的 denied 先等 60 秒再看，别急着判代码有 bug。
+- **报告格式**：说明是哪个面板、哪个 app、哪个可执行文件、`tccutil`/日志里看到的服务名与时间戳；没有实机复现就写明「未实机验证」，不要用「应该没问题」代替结论。
+
 ---
 
 ## 版本号规则

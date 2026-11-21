@@ -80,9 +80,13 @@ bash scripts/permission-smoke.sh
   - 探针延迟：单探针 `latencyMs` 最大 84（远小于 1000 阈值）。
   - 未授权引导出现：`CGWindowList` 检测到 MacsyZones 面板（420×700，layer 3，左半区），即非模态 `AccessibilityDialog` 骨架——未弹阻塞式模态（T016 已去 `.screenSaver` 级别与 `exit(0)`）。
   - 面板出现时机：首轮探测完成之后（启动后约 1 秒内），未抢焦点。
-- 留待人工（需解锁桌面/真实交互）：
-  - 面板文案与「打开系统设置」「重新检测」按钮的人工确认（验证期间屏幕处于锁屏，截图只见锁屏界面）。
-  - 点「打开系统设置」后系统设置实际停留的面板（同时验证 R12 第 2 条的面板归属）。
+- 目视验证（2026-11-21 22:20–22:26，桌面已解锁，未授权态）：
+  - 面板渲染正常：`screencapture -l <windowID>` 抓到面板本体，标题「MacsyZones 需要窗口控制权限」，4 步文案为「打开『系统设置』→『隐私与安全性』」「进入『System & App Protection Override』面板」「允许 MacsyZones 控制其他 app 的窗口」「若本 app 可能不在无障碍列表中……可到『无障碍』面板查看」，按钮「打开系统设置」「重新检测」「关闭」——即 27.3 双面板文案已真实上屏，不再是旧「辅助功能」单面板说辞。
+  - 非模态、可继续操作其他 app：面板为 `.floating` 级别、`orderFrontRegardless`，未激活本 app、未抢焦点。
+  - 菜单栏状态标记：未授权态下状态图标右侧出现红色实心圆点（`button.attributedTitle` 的 ` ●`），截图放大 4 倍可辨；已授权时该圆点消失（`default` 分支清空 attributedTitle）。
+  - 提示只出现一次：同一进程内轮询到第 3 次（>15 秒）不再重复弹面板，`hasShownPermissionGuidance` 生效。
+- 留待人工（需真实 TCC 授权/点击）：
+  - 点「打开系统设置」后系统设置实际停留的面板（同时验证 R12 第 2 条的面板归属；本机 `osascript` UI 脚本被 TCC 拒绝，无法代点）。
   - 授权后不闪引导（场景 B）：本机当前未授权，无法复现 granted 首启。
   - 撤销授权开关的实际位置（若列表中有 MacsyZones 的话）。
 
@@ -211,7 +215,7 @@ top -pid "$PID" -l 5 -stats pid,cpu | tail -6
 
 | 场景 | 状态 | 证据 |
 | --- | --- | --- |
-| A 未授权启动 | 自动化部分完成 | 非模态引导面板出现（420×700 左半区）、首轮全 denied、5s 轮询、探针 <100ms、不崩溃；文案目视/深链落点留待人工 |
+| A 未授权启动 | 自动化 + 目视完成 | 非模态引导面板真实上屏（420×700，标题与 27.3 双面板 4 步文案已逐字核对）、菜单栏红色状态点、首轮全 denied、5s 轮询、探针 <100ms、不崩溃、只提示一次；仅「打开系统设置」的落点未代点 |
 | B 授权后启动 | 机制已实现，恢复分支未实机验证 | 首轮门控 + 5s 轮询 + 硬触发接线编译通过；需已授权机器目视 |
 | C 运行期撤销 | 机制已实现，未实机验证 | 30s 轮询 + 即时复核代码路径与断言覆盖 |
 | D 升级保持 | 未实机验证 | 本机已是 27.3；双形态真实函数断言 50 assertions |
@@ -222,6 +226,8 @@ top -pid "$PID" -l 5 -stats pid,cpu | tail -6
 | I 登录项 | 未实机验证 | SMAppService 实时判定 + 首轮门控 |
 | J 性能采样 | 自动化完成 | 主线程栈无探针帧；闲置 CPU 0.0–0.7%（≤2%），探针批次峰值 3.1% transient；内存峰值 29.5M |
 | K 旧形态 27.0–27.2 | 未实机验证 | 无旧版机器；legacyAccessibility/privacyRoot 真实函数断言覆盖 |
+
+**为什么 B/C/E/F1/G/I/K 仍挂在「未实机验证」**（2026-11-21 复查，环境事实而非偷懒）：这些场景都要「MacsyZones 真正拿到授权」才能观察 granted 分支。本机 macOS 27.3 下授权只能在「系统设置 → 隐私与安全性」里由人把 toggle 打开（`kTCCServiceAccessibility` 不允许程序主动弹框，tccd 日志 `does not allow prompting; returning preflight_unknown`），而改动 toggle 需要 Touch ID/密码。代理侧能做的替代手段都被系统挡住：`osascript` UI 脚本报 `-1719 不允许辅助访问`、`agent-desktop permissions` 报 `accessibility: denied`、`sudo -n` 不可用、TCC 库被 SIP 保护不可读。因此这些行必须等一次人工授权（约 30 秒）后才能补验；在此之前，它们的置信度由 `check_permission_model.sh` 的 50 条真实函数断言 + 源码核对承担，不冒充实机结论。
 
 构建与签名：Debug（scripts/build-debug.sh）与 Release（xcodebuild -configuration Release）均 BUILD SUCCEEDED，`warning:` 计数 = 基线（1，appintentsmetadataprocessor 工具提示），verify-signing 均 PASS；断言脚本 `check_permission_model.sh` MODE=extract PASS 50 assertions、不变量 grep 9/9；冒烟 `permission-smoke.sh` PASS（29 条权限记录、最慢探针 90ms、launch 差 0s）；报告校验 PASS: 报告结构符合契约。
 
