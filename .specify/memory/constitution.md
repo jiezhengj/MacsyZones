@@ -10,6 +10,8 @@ Sync Impact Report:
 - Added sections: 额外约束与架构标准, 治理与修订程序
 - Removed sections: 无
 - Follow-up TODOs: 无
+- Version change: 1.0.0 -> 1.0.1（PATCH）
+- 2026-11-21：移除「规则文档双向同步（`AGENTS.md` ≡ `CLAUDE.md`）」条款。`CLAUDE.md` 已于 2026-09-29 的 `9d51733` 主动删除并合并进 `AGENTS.md`，原条款成为无法履行的悬空要求；项目规则改由 `AGENTS.md` 作为唯一权威来源，不再维护重复副本。
 -->
 
 # MacsyZones 项目章程
@@ -39,7 +41,7 @@ Sync Impact Report:
 - **系统基线要求**：最低部署系统明确为 macOS 27.0，彻底移除历史 macOS 版本的条件编译分支。
 - **窗口惰性物化**：常驻运行内存需维持在轻量区间，窗口采用按需惰性物化（Lazy Materialization），未激活布局不得常驻物理图形树。
 - **并发与主线程调度**：所有 AppKit 窗口代理与 UI 状态属性的变更派发必须置于主线程或下一 RunLoop，杜绝约束重入崩溃。
-- **规则文档双向同步**：项目规则更新时，必须同时维护 `AGENTS.md` 和 `CLAUDE.md`，两份文件内容必须保持完全一致。
+- **规则文档单一来源**：项目规则以根目录 `AGENTS.md` 为唯一权威来源，不维护重复副本；规则更新只改 `AGENTS.md` 及其指向的专门文档（`VERSIONING.md`、`RELEASES.md`、`BUILD.md`）。
 
 ## 治理与修订程序
 
@@ -50,4 +52,4 @@ Sync Impact Report:
   - PATCH：文字澄清、格式优化、非语义性修正。
 - **审查机制**：任何对本章程的修改必须记录变更原因，并在文件顶部保留同步影响报告（Sync Impact Report）。
 
-**Version**: 1.0.0 | **Ratified**: 2026-09-26 | **Last Amended**: 2026-09-26
+**Version**: 1.0.1 | **Ratified**: 2026-09-26 | **Last Amended**: 2026-11-21

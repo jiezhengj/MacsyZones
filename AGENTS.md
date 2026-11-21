@@ -474,6 +474,8 @@ git reset --hard <commit-hash>
 
 ## 项目规则和文件的权威来源
 
+本文件是项目规则的唯一权威来源；不维护 `CLAUDE.md` 等重复副本，避免双份规则同步失效。
+
 本项目使用官方 Spec Kit CLI、当前 Agent 的官方原生集成及其技能。此规则块与项目提交的 `.specify/**`、`specs/**` 和官方集成文件共同构成本项目的 Spec Kit 工作基线。目标项目 Agent 不需要也不得依赖个人全局规则或中央 Reference。
 
 - `.specify/**` 和 Agent 集成文件由官方 CLI 管理；`specs/**` 中的流程产物由官方技能生成。不要重新初始化已有 `.specify/` 的项目，也不要手工覆盖 CLI 托管文件。
