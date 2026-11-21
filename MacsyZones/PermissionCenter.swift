@@ -534,12 +534,11 @@ final class PermissionCenter: ObservableObject {
         )
         capabilities[.eventPosting] = eventState
 
-        // 首轮完成标记（T008）：全部能力均有状态后置 true。
-        if !hasCompletedFirstCheck, PermissionCapability.allCases.allSatisfy({ capabilities[$0] != nil }) {
-            hasCompletedFirstCheck = true
-        }
-
         // 发布快照（overall 取窗口控制的对外状态）。
+        //
+        // 顺序不变式：快照必须先发布，hasCompletedFirstCheck 再置 true。反过来的话，
+        // App 侧 combineLatest($snapshot, $hasCompletedFirstCheck) 会先收到 (nil, true)，
+        // nil 被当成「未授权」而误弹一次引导（授权用户每次启动都会闪一次）。
         snapshot = PermissionSnapshot(
             generatedAt: now,
             capabilities: PermissionCapability.allCases.compactMap { capabilities[$0] },
@@ -547,6 +546,12 @@ final class PermissionCenter: ObservableObject {
             system: Self.makeSystemInfo(),
             app: Self.makeAppInfo()
         )
+
+        // 首轮完成标记（T008）：全部能力均有状态、且快照已经发布之后才置 true。
+        if !hasCompletedFirstCheck, snapshot != nil,
+           PermissionCapability.allCases.allSatisfy({ capabilities[$0] != nil }) {
+            hasCompletedFirstCheck = true
+        }
 
         // 更新跨线程状态镜像（非隔离读取方：Layout mouseMoved、监视器装/卸判定等）。
         PermissionStatusMirror.set(.windowControl, windowState.status)

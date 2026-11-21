@@ -581,13 +581,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
                 .receive(on: DispatchQueue.main)
                 .sink { pair in
                     let (snapshot, firstCheckDone) = pair
-                    guard firstCheckDone else { return }
+                    // 快照未就绪时不得判定：nil 曾被当成「未授权」而误弹一次引导。
+                    guard firstCheckDone, let snapshot else { return }
 
-                    if snapshot?.overall != .granted, !hasShownPermissionGuidance {
+                    if snapshot.overall != .granted, !hasShownPermissionGuidance {
                         hasShownPermissionGuidance = true
                         self.showAccessibilityPermissionPopover()
+                    } else if snapshot.overall == .granted, accessibilityDialog != nil {
+                        // 用户在引导面板还开着的时候完成授权：立即收起面板，不要求重启。
+                        accessibilityDialog?.dismiss()
+                        accessibilityDialog = nil
                     }
-                    if snapshot?.overall == .granted,
+                    if snapshot.overall == .granted,
                        !onboardingState.hasCompletedOnboarding,
                        !hasShownPermissionOnboarding {
                         hasShownPermissionOnboarding = true

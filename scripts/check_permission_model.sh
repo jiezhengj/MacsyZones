@@ -144,6 +144,22 @@ if grep -n "exit(0)" "$info_file"; then
     exit 1
 fi
 
+# 不变量 ④：快照必须先于首轮完成标记发布。
+# 反例（2026-11-22 授权后实测发现的缺陷）：先置 hasCompletedFirstCheck=true 再发快照，
+# App 侧 combineLatest 会先收到 (nil, true)，nil 被当成「未授权」而误弹一次引导。
+snapshot_line="$(grep -n "snapshot = PermissionSnapshot(" "$source_root/MacsyZones/PermissionCenter.swift" | cut -d: -f1 | head -1 || true)"
+first_check_line="$(grep -n "hasCompletedFirstCheck = true" "$source_root/MacsyZones/PermissionCenter.swift" | cut -d: -f1 | head -1 || true)"
+if [[ -z "$snapshot_line" || -z "$first_check_line" || "$snapshot_line" -ge "$first_check_line" ]]; then
+    echo "FAIL: 快照发布必须早于 hasCompletedFirstCheck 置位（snapshot@${snapshot_line:-?} / firstCheck@${first_check_line:-?}）" >&2
+    exit 1
+fi
+
+# 不变量 ⑤：引导门控必须先解包快照，禁止用 snapshot?.overall 把 nil 当成未授权。
+if ! grep -q "guard firstCheckDone, let snapshot else" "$source_root/MacsyZones/App.swift"; then
+    echo "FAIL: App.swift 的引导门控缺少快照解包守卫（nil 快照会被当成未授权而误弹引导）" >&2
+    exit 1
+fi
+
 # 不变量 ③：全仓 #available 计数不超过基线 9（/tmp/m003-boundary-baseline.txt）。
 available_count="$(grep -rn "#available(" "$source_root/MacsyZones" | wc -l | tr -d ' ')"
 if [[ "$available_count" -gt 9 ]]; then
