@@ -18,6 +18,8 @@ bash scripts/build-release-dmg.sh
 
 **期望**：两条命令均 exit 0；DMG 落在 `/tmp`（构建脚本自带此约定，不得进仓库）。构建日志里不得出现新增的 `onChange` 弃用警告（对照改动前日志）。
 
+实现期注意：`build-release-dmg.sh` 要求传入版本等于 `MARKETING_VERSION`，而 `check-version.sh` 又要求该版本高于已发布版本——两者一起意味着**必须先做出版本决策**，与本 feature「不预设下一版本」冲突。实现期的等价门禁是 Release 配置构建（手动签名参数同上）+ `bash scripts/verify-signing.sh`，DMG 打包留到真正发版时执行。
+
 ## 二、脚本断言（惰性物化回归闸门）
 
 ```bash
@@ -116,3 +118,18 @@ bash scripts/verify-signing.sh
 | 构建通过但开关不持久化 | `SettingsState.refresh()` 的 `AppSettingsData(...)` 漏了新字段 | 按 `data-model.md` 的三处清单逐项对照 |
 | 光标仍是上下箭头 | `NSHostingView(rootView:)` 没把 `mode` 传进 `SnapResizerView` | 检查 `MacsyZones/Layout.swift:1921-1922` 与视图默认值 |
 | 对账后窗口被注册两次 | 对账没跳过 `observedIDs` 里已有的窗口 | 按 `data-model.md` 的 ReconcileView 规则加 `observedIDs` 过滤 |
+
+## 六、实测记录（2026-11-21，实现当期）
+
+自动化项（代理执行）：
+
+| 项目 | 命令 | 结果 |
+|---|---|---|
+| Debug 构建 + 签名 | `bash scripts/build-debug.sh` | `** BUILD SUCCEEDED **`、`PASS: 正式签名 Debug 构建完成` |
+| 弃用警告 | 同上，`grep -E "warning:"` | 0 条（改动前基线 5 条 `onChange(of:perform:)`） |
+| Release 配置构建 + 签名 | `xcodebuild -configuration Release … && scripts/verify-signing.sh` | BUILD SUCCEEDED、`PASS: 正式签名身份 … 完整性均一致` |
+| 惰性物化闸门 | `bash scripts/check_lazy_lifecycle.sh` | `PASS: 139 assertions …`（exit 0） |
+| 升级检查号 | `grep -n "LastUpgradeCheck\|LastUpgradeVersion"` | 均为 2700 |
+| 启动冒烟 | `/tmp/mz-debug` 产物运行 18 秒 | 无崩溃、无 AX 注册失败刷屏、无残留进程；临时构建 AX 返回 `-25211`（未获 TCC 授权），故 `Reconcile:` 无日志 |
+
+人工项（待在本机已授权的安装副本上执行）：场景 A、B、C、D、G 全部条目，以及场景 E 第 1 条（Xcode 打开工程不再提示推荐设置）。原因：GUI 交互与辅助功能授权无法由代理代跑，`/tmp` 下的临时构建拿不到 TCC 授权。
