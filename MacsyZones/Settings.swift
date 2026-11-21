@@ -33,6 +33,8 @@ struct AppSettingsData: Codable {
     var snapWhileDragging: Bool?
     var enableZoneSpanning: Bool?
     var spanKey: String?
+    // Quick Snapper 的布局循环是否只遍历区域布局（网格布局跳过）。
+    var quickSnapperZoneLayoutsOnly: Bool?
 }
 
 class AppSettings: UserData, ObservableObject {
@@ -59,6 +61,7 @@ class AppSettings: UserData, ObservableObject {
     // Span a window across multiple zones by holding the span key while hovering them.
     private static let defaultEnableZoneSpanning: Bool = true
     private static let defaultSpanKey: String = "Command"
+    private static let defaultQuickSnapperZoneLayoutsOnly: Bool = true
     
     @Published var modifierKey: String = defaultModifierKey
     @Published var snapKey: String = defaultSnapKey
@@ -80,6 +83,7 @@ class AppSettings: UserData, ObservableObject {
     @Published var snapWhileDragging: Bool = defaultSnapWhileDragging
     @Published var enableZoneSpanning: Bool = defaultEnableZoneSpanning
     @Published var spanKey: String = defaultSpanKey
+    @Published var quickSnapperZoneLayoutsOnly: Bool = defaultQuickSnapperZoneLayoutsOnly
 
     init() {
         super.init(name: "AppSettings", data: "{}", fileName: "AppSettings.json")
@@ -113,6 +117,7 @@ class AppSettings: UserData, ObservableObject {
             self.snapWhileDragging = settings.snapWhileDragging ?? snapWhileDragging
             self.enableZoneSpanning = settings.enableZoneSpanning ?? enableZoneSpanning
             self.spanKey = settings.spanKey ?? spanKey
+            self.quickSnapperZoneLayoutsOnly = settings.quickSnapperZoneLayoutsOnly ?? quickSnapperZoneLayoutsOnly
         } catch {
             debugLog("Error parsing settings JSON: \(error)")
         }
@@ -140,7 +145,8 @@ class AppSettings: UserData, ObservableObject {
                 snapHighlightStrategy: snapHighlightStrategy,
                 snapWhileDragging: snapWhileDragging,
                 enableZoneSpanning: enableZoneSpanning,
-                spanKey: spanKey
+                spanKey: spanKey,
+                quickSnapperZoneLayoutsOnly: quickSnapperZoneLayoutsOnly
             )
             
             let jsonData = try JSONEncoder().encode(settings)
@@ -175,6 +181,7 @@ class AppSettings: UserData, ObservableObject {
         snapWhileDragging = Self.defaultSnapWhileDragging
         enableZoneSpanning = Self.defaultEnableZoneSpanning
         spanKey = Self.defaultSpanKey
+        quickSnapperZoneLayoutsOnly = Self.defaultQuickSnapperZoneLayoutsOnly
         
         quickSnapper.toggleHotkey?.register(for: quickSnapShortcut)
         cycleForwardHotkey.register(for: cycleWindowsForwardShortcut)

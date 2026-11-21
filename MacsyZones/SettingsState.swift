@@ -68,7 +68,8 @@ class SettingsState: ObservableObject {
             snapHighlightStrategy: appSettings.snapHighlightStrategy,
             snapWhileDragging: appSettings.snapWhileDragging,
             enableZoneSpanning: appSettings.enableZoneSpanning,
-            spanKey: appSettings.spanKey
+            spanKey: appSettings.spanKey,
+            quickSnapperZoneLayoutsOnly: appSettings.quickSnapperZoneLayoutsOnly
         )
 
         self.tempAppSettings = currentSettings
@@ -153,7 +154,8 @@ class SettingsState: ObservableObject {
                lhs.snapHighlightStrategy == rhs.snapHighlightStrategy &&
                lhs.snapWhileDragging == rhs.snapWhileDragging &&
                lhs.enableZoneSpanning == rhs.enableZoneSpanning &&
-               lhs.spanKey == rhs.spanKey
+               lhs.spanKey == rhs.spanKey &&
+               lhs.quickSnapperZoneLayoutsOnly == rhs.quickSnapperZoneLayoutsOnly
     }
 
     // MARK: - Save All Changes
@@ -180,6 +182,7 @@ class SettingsState: ObservableObject {
         appSettings.snapWhileDragging = tempAppSettings.snapWhileDragging ?? appSettings.snapWhileDragging
         appSettings.enableZoneSpanning = tempAppSettings.enableZoneSpanning ?? appSettings.enableZoneSpanning
         appSettings.spanKey = tempAppSettings.spanKey ?? appSettings.spanKey
+        appSettings.quickSnapperZoneLayoutsOnly = tempAppSettings.quickSnapperZoneLayoutsOnly ?? appSettings.quickSnapperZoneLayoutsOnly
         appSettings.save()
 
         // Apply SpaceLayoutPreferences
@@ -227,7 +230,8 @@ class SettingsState: ObservableObject {
             snapHighlightStrategy: appSettings.snapHighlightStrategy,
             snapWhileDragging: appSettings.snapWhileDragging,
             enableZoneSpanning: appSettings.enableZoneSpanning,
-            spanKey: appSettings.spanKey
+            spanKey: appSettings.spanKey,
+            quickSnapperZoneLayoutsOnly: appSettings.quickSnapperZoneLayoutsOnly
         )
 
         self.tempAppSettings = currentSettings

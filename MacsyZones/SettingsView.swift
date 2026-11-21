@@ -728,6 +728,19 @@ struct QuickSnapperSettingsSection: View {
                 }
             ))
 
+            Toggle("布局循环只包含区域布局", isOn: Binding(
+                get: { state.tempAppSettings.quickSnapperZoneLayoutsOnly ?? true },
+                set: {
+                    state.tempAppSettings.quickSnapperZoneLayoutsOnly = $0
+                    state.checkForChanges()
+                }
+            ))
+            .toggleStyle(.checkbox)
+
+            Text("关闭后，网格布局也会进入 ← / → 的布局循环顺序。")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+
             Divider().padding(.vertical, 2)
 
             HStack(spacing: 5) {

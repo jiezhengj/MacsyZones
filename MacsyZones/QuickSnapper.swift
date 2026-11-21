@@ -558,16 +558,19 @@ class QuickSnapper: ObservableObject {
                 guard self.isOpen else { return }
                 userLayouts.currentLayout.hideAllWindows()
                 
-                let sortedKeys = userLayouts.layouts.keys.sorted()
-                if let currentIndex = sortedKeys.firstIndex(of: userLayouts.currentLayoutName) {
-                    let prevIndex = (currentIndex - 1 + sortedKeys.count) % sortedKeys.count
-                    let layoutName = sortedKeys[prevIndex]
-                    
-                    userLayouts.currentLayoutName = layoutName
-                    userLayouts.currentLayout.show()
-                    
-                    spaceLayoutPreferences.setCurrent(layoutName: layoutName)
-                }
+                let layouts = appSettings.quickSnapperZoneLayoutsOnly
+                    ? userLayouts.layouts.filter { $0.value.layoutType == .zone }
+                    : userLayouts.layouts
+                let sortedKeys = layouts.keys.sorted()
+                guard !sortedKeys.isEmpty else { return }
+                let currentIndex = sortedKeys.firstIndex(of: userLayouts.currentLayoutName) ?? 0
+                let prevIndex = (currentIndex - 1 + sortedKeys.count) % sortedKeys.count
+                let layoutName = sortedKeys[prevIndex]
+                
+                userLayouts.currentLayoutName = layoutName
+                userLayouts.currentLayout.show()
+                
+                spaceLayoutPreferences.setCurrent(layoutName: layoutName)
             }
             
             return noErr
@@ -578,16 +581,19 @@ class QuickSnapper: ObservableObject {
                 guard self.isOpen else { return }
                 userLayouts.currentLayout.hideAllWindows()
                 
-                let sortedKeys = userLayouts.layouts.keys.sorted()
-                if let currentIndex = sortedKeys.firstIndex(of: userLayouts.currentLayoutName) {
-                    let nextIndex = (currentIndex + 1) % sortedKeys.count
-                    let layoutName = sortedKeys[nextIndex]
-                    
-                    userLayouts.currentLayoutName = layoutName
-                    userLayouts.currentLayout.show()
-                    
-                    spaceLayoutPreferences.setCurrent(layoutName: layoutName)
-                }
+                let layouts = appSettings.quickSnapperZoneLayoutsOnly
+                    ? userLayouts.layouts.filter { $0.value.layoutType == .zone }
+                    : userLayouts.layouts
+                let sortedKeys = layouts.keys.sorted()
+                guard !sortedKeys.isEmpty else { return }
+                let currentIndex = sortedKeys.firstIndex(of: userLayouts.currentLayoutName) ?? 0
+                let nextIndex = (currentIndex + 1) % sortedKeys.count
+                let layoutName = sortedKeys[nextIndex]
+                
+                userLayouts.currentLayoutName = layoutName
+                userLayouts.currentLayout.show()
+                
+                spaceLayoutPreferences.setCurrent(layoutName: layoutName)
             }
             
             return noErr
