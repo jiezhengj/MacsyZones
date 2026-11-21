@@ -148,18 +148,21 @@ enum PermissionGuidance {
         case failed
     }
 
+    /// 打开链路的纯判定（R15 可抽取执行）：深链成功 → opened(pane)；深链失败但
+    /// 首页成功 → openedFallback；两次都失败 → failed（调用方只展示文字路径）。
+    static func openOutcome(pane: PermissionGuidancePane, deepLinkOpened: Bool, rootOpened: Bool) -> OpenOutcome {
+        if deepLinkOpened { return .opened(pane) }
+        if rootOpened { return .openedFallback }
+        return .failed
+    }
+
     /// 打开引导面板：先试深链；返回 false 时退化为 privacyRoot（契约第 2 条）；
     /// 两次都失败返回 .failed，由调用方展示文字路径。
     @discardableResult
     static func open(_ pane: PermissionGuidancePane) -> OpenOutcome {
         let deepLink = URL(string: deepLinkString(for: pane))!
-        if NSWorkspace.shared.open(deepLink) {
-            return .opened(pane)
-        }
-        let root = URL(string: deepLinkString(for: .privacyRoot))!
-        if NSWorkspace.shared.open(root) {
-            return .openedFallback
-        }
-        return .failed
+        let deepLinkOpened = NSWorkspace.shared.open(deepLink)
+        let rootOpened = deepLinkOpened ? false : NSWorkspace.shared.open(URL(string: deepLinkString(for: .privacyRoot))!)
+        return openOutcome(pane: pane, deepLinkOpened: deepLinkOpened, rootOpened: rootOpened)
     }
 }

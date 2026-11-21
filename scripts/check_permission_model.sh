@@ -62,11 +62,13 @@ extract_all() {
 
     echo "enum PermissionGuidance {" >> "$test_source"
     local pg="$source_root/MacsyZones/PermissionGuidance.swift"
+    extract_one "$pg" '    enum OpenOutcome: Equatable, Sendable {'
     extract_one "$pg" '    static func primaryPane(forMinor minor: Int) -> PermissionGuidancePane {'
     extract_one "$pg" '    static func fallbackPane(forMinor minor: Int) -> PermissionGuidancePane {'
     extract_one "$pg" '    static func deepLinkString(for pane: PermissionGuidancePane) -> String {'
     extract_one "$pg" '    static func panelTitle(for pane: PermissionGuidancePane) -> String {'
     extract_one "$pg" '    static func steps(for pane: PermissionGuidancePane) -> [String] {'
+    extract_one "$pg" '    static func openOutcome(pane: PermissionGuidancePane, deepLinkOpened: Bool, rootOpened: Bool) -> OpenOutcome {'
     echo "}" >> "$test_source"
 
     cat "$root/scripts/tests/permission-assertions.swift" >> "$test_source"

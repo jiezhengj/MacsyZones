@@ -57,6 +57,18 @@ expect(PermissionGuidance.primaryPane(forMinor: 4) == .systemProtectionOverride,
 expect(PermissionGuidance.fallbackPane(forMinor: 2) == .privacyRoot, "minor 2 备选 privacyRoot")
 expect(PermissionGuidance.fallbackPane(forMinor: 3) == .accessibilityApps, "minor 3 备选 accessibilityApps")
 
+// T038：两套 pane 形态的边界值（minor 0 / 2 / 3 / 4 已覆盖，再补 minor 1 与负值容错）
+expect(PermissionGuidance.primaryPane(forMinor: 1) == .legacyAccessibility, "minor 1 首选 legacyAccessibility")
+expect(PermissionGuidance.fallbackPane(forMinor: 4) == .accessibilityApps, "minor 4 备选 accessibilityApps")
+
+// T038：打开失败链路（真实函数 openOutcome 抽取执行）
+// 契约：深链成功 → opened；深链失败但首页成功 → openedFallback；两次都失败 → 仅文字路径（failed）。
+expect(PermissionGuidance.openOutcome(pane: .systemProtectionOverride, deepLinkOpened: true, rootOpened: false) == .opened(.systemProtectionOverride), "深链成功 → opened(pane)")
+expect(PermissionGuidance.openOutcome(pane: .legacyAccessibility, deepLinkOpened: true, rootOpened: true) == .opened(.legacyAccessibility), "深链成功时不再打开首页 → opened(pane)")
+expect(PermissionGuidance.openOutcome(pane: .accessibilityApps, deepLinkOpened: false, rootOpened: true) == .openedFallback, "深链失败首页成功 → openedFallback")
+expect(PermissionGuidance.openOutcome(pane: .systemProtectionOverride, deepLinkOpened: false, rootOpened: false) == .failed, "27.3+ 两次失败 → failed（仅文字路径）")
+expect(PermissionGuidance.openOutcome(pane: .legacyAccessibility, deepLinkOpened: false, rootOpened: false) == .failed, "27.0–27.2 两次失败 → failed（仅文字路径）")
+
 // 深链契约（guidance-targets.md 表格逐行）
 expect(PermissionGuidance.deepLinkString(for: .systemProtectionOverride) == "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility", "systemProtectionOverride 深链应与契约一致")
 expect(PermissionGuidance.deepLinkString(for: .legacyAccessibility) == "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility", "legacyAccessibility 深链应与契约一致")
