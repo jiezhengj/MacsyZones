@@ -178,3 +178,9 @@ Task: "T027 移植 check_lazy_lifecycle.sh 与 scripts/tests/"
 - T030 场景 A–G 全量走查与「实测记录」回填。
 
 自动化可覆盖的部分（构建、签名、脚本断言、启动冒烟、边界差异核对）均已通过，记录见上。
+
+## Phase 9: Convergence
+
+- [x] T034 [HIGH] 把 `userLayouts.currentLayout.hideAllWindows()` 移到空集 guard 之后（`MacsyZones/QuickSnapper.swift:559`、`:582`）：当前实现先隐藏当前布局的全部窗口、再判断候选集是否为空，库里只有网格布局且开关开启时，按 ← / → 会隐藏当前布局的窗口却什么都不切换，留下「已隐藏未显示」的中间态 per FR-002 / 边界与异常情况「过滤后集合为空」（contradicts）
+- [x] T035 [HIGH] 让 `reconcile` 的窗口狩猎离开主 actor 并限定进程范围：`MacsyZones/App.swift:298-311` 在主 actor 上逐个差集窗口调用 `retrieveFreshWindowElement(for:)`（未传 pid，会遍历全部 `.regular` 进程的 AX 窗口列表且未设消息超时），`retrieveFreshWindowElementByTitle` 同样全量遍历；改为传入 `pid` 收窄范围、对 `appElement` 设 `AXUIElementSetMessagingTimeout`，并把狩猎结果的计算移出主线程，只在主线程做注册 per SC-007 / FR-015（partial）
+- [x] T036 [LOW] 在 `quickstart.md` 场景 D 补可复现的「延迟建窗」构造步骤与授权前置（脚本或明确的人工步骤），让 US4 验收第 1 条的「脚本化制造」有可执行载体 per US4/AC1（missing）

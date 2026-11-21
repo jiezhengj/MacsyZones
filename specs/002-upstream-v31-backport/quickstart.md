@@ -79,6 +79,50 @@ PASS: 139 assertions against actual UserLayout/startEditing/stopEditing/toggleEd
 4. 系统设置里撤销辅助功能权限，再操作窗口。
    **期望**：日志按退避降频，不刷屏；恢复权限后自动恢复观察。
 
+#### 前置：让副本人拿到辅助功能授权
+
+`/tmp` 下构建出来的产物不在系统「辅助功能」列表里，AX 注册会全部返回 `-25211`（`kAXErrorAPIDisabled`），此时场景 D 无法验证。做法是把构建产物拷到固定路径再授权一次：
+
+```bash
+# 构建到固定路径（scripts/build-debug.sh 结束时会把产物删掉，不能直接用它）
+xcodebuild -project MacsyZones.xcodeproj -scheme MacsyZones -configuration Debug \
+  -derivedDataPath /tmp/mz-authorized \
+  CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=C7C84AAA3B67FACEA73042570A0BA2FC3D19E613 \
+  DEVELOPMENT_TEAM=74FR87HYTH build
+
+rm -rf ~/Applications/MacsyZones-dbg.app
+cp -R /tmp/mz-authorized/Build/Products/Debug/MacsyZones.app ~/Applications/MacsyZones-dbg.app
+open ~/Applications/MacsyZones-dbg.app
+# 系统设置 → 隐私与安全性 → 辅助功能 → 勾选 MacsyZones-dbg；每次重新构建后要重新拷贝并确认仍被勾选
+```
+
+随后从终端启动它，才能把日志刷到屏幕：
+
+```bash
+~/Applications/MacsyZones-dbg.app/Contents/MacOS/MacsyZones 2>&1 | tee /tmp/macsyzones.log
+# 另开一个终端观察对账与注册：
+tail -f /tmp/macsyzones.log | grep -E "Reconcile:|observer ready|Giving up"
+```
+
+#### 构造「窗口在屏上但 AX 初期不返回」
+
+三种可直接照做的造法，任选其一：
+
+```bash
+# 造法 1：后台批量建窗（Finder 连开 5 个窗口后马上切走）
+osascript -e 'tell application "Finder" to activate' -e 'delay 0.3' \
+  -e 'repeat 5 times' -e 'tell application "Finder" to make new Finder window' -e 'delay 0.2' -e 'end repeat'
+osascript -e 'tell application "System Events" to keystroke " " using command down'
+
+# 造法 2：冷启动一个恢复会话较慢的 App，在恢复过程中就观察
+open -a "Safari"
+
+# 造法 3：强制制造 AX 读取失败——在「辅助功能」里临时取消勾选再勾回来
+```
+
+**判据**：`tail -f` 里出现 `Reconcile: pid … is missing N window(s) from AX; hunting for them.` 且随后出现该窗口的 `AX app observer ready` / 注册日志，时间戳相差不超过 12 秒（启动轮 [2,6,12] 或激活即时对账）。
+
+
 ### 场景 E（构建清单与代码健康）
 
 1. Xcode 27 打开 `MacsyZones.xcodeproj`。

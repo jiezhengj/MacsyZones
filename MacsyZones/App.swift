@@ -50,6 +50,13 @@ var isPreview: Bool {
     return ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
 }
 
+/// Carries an AX element across the main-actor hop. AXUIElement is a Core
+/// Foundation reference type; only the sending side touches it before the
+/// handoff, and the receiving side only registers notifications.
+private struct AXElementBox: @unchecked Sendable {
+    let element: AXUIElement
+}
+
 @MainActor
 final class WindowObserverManager {
     static let shared = WindowObserverManager()
@@ -265,8 +272,13 @@ final class WindowObserverManager {
     /// re-registers windows that AX did not report. A window can appear in CG
     /// while still missing from `kAXWindowsAttribute`; those windows never emit
     /// AX movement notifications and silently lose snapping until this heals.
+    ///
+    /// The diff itself is cheap, but hunting the missing elements walks AX
+    /// window lists, and an unresponsive app can stall those calls for seconds.
+    /// So the hunt runs off the main actor; only `observeWindow` touches the
+    /// observer registry.
     func reconcile(pid: pid_t, axWindows: [AXUIElement]) {
-        guard pid > 0, let entry = entries[pid] else { return }
+        guard pid > 0 else { return }
 
         var axIDs = Set<UInt32>()
         for window in axWindows {
@@ -274,39 +286,50 @@ final class WindowObserverManager {
                 axIDs.insert(id)
             }
         }
+        let observedIDs: Set<UInt32> = entries[pid].map { Set($0.windows.keys) } ?? []
 
-        guard let cgList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
-                                                      kCGNullWindowID) as? [[String: Any]]
-        else { return }
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let cgList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
+                                                          kCGNullWindowID) as? [[String: Any]]
+            else { return }
 
-        var cgTitles: [UInt32: String] = [:]
-        let pidValue = Int(pid)
-        for info in cgList {
-            guard let ownerPID = info[kCGWindowOwnerPID as String] as? Int, ownerPID == pidValue,
-                  let layer = info[kCGWindowLayer as String] as? Int, layer == 0,
-                  let windowID = info[kCGWindowNumber as String] as? UInt32
-            else { continue }
-            cgTitles[windowID] = (info[kCGWindowName as String] as? String) ?? ""
-        }
+            var cgTitles: [UInt32: String] = [:]
+            let pidValue = Int(pid)
+            for info in cgList {
+                guard let ownerPID = info[kCGWindowOwnerPID as String] as? Int, ownerPID == pidValue,
+                      let layer = info[kCGWindowLayer as String] as? Int, layer == 0,
+                      let windowID = info[kCGWindowNumber as String] as? UInt32
+                else { continue }
+                cgTitles[windowID] = (info[kCGWindowName as String] as? String) ?? ""
+            }
 
-        let observedIDs = Set(entry.windows.keys)
-        let missingIDs = Set(cgTitles.keys).subtracting(axIDs).subtracting(observedIDs)
-        guard !missingIDs.isEmpty else { return }
+            let missingIDs = Set(cgTitles.keys).subtracting(axIDs).subtracting(observedIDs)
+            guard !missingIDs.isEmpty else { return }
 
-        debugLog("Reconcile: pid \(pid) is missing \(missingIDs.count) window(s) from AX; hunting for them.")
+            debugLog("Reconcile: pid \(pid) is missing \(missingIDs.count) window(s) from AX; hunting for them.")
 
-        for windowID in missingIDs {
-            var element = retrieveFreshWindowElement(for: windowID)
+            var hunted: [AXElementBox] = []
+            for windowID in missingIDs {
+                var element = retrieveFreshWindowElement(for: windowID, pid: pid)
 
-            if element == nil {
-                let title = cgTitles[windowID] ?? ""
-                if !title.isEmpty, let found = retrieveFreshWindowElementByTitle(title: title) {
-                    element = found.element
+                if element == nil {
+                    let title = cgTitles[windowID] ?? ""
+                    if !title.isEmpty, let found = retrieveFreshWindowElementByTitle(title: title) {
+                        element = found.element
+                    }
+                }
+
+                if let element {
+                    hunted.append(AXElementBox(element: element))
                 }
             }
 
-            if let element {
-                observeWindow(pid: pid, element: element)
+            guard !hunted.isEmpty, let self else { return }
+
+            Task { @MainActor in
+                for box in hunted {
+                    self.observeWindow(pid: pid, element: box.element)
+                }
             }
         }
     }
