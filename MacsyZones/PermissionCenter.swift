@@ -158,6 +158,25 @@ enum PermissionRules {
     }
 }
 
+// MARK: - 跨线程状态镜像
+
+/// 文件级状态镜像：主线程 finishBatch 写入，非隔离上下文（后台监视器回调、
+/// Layout 的 mouseMoved 等）同步读取；NSLock 保护，避免触碰 MainActor 隔离状态。
+private enum PermissionStatusMirror {
+    static let lock = NSLock()
+    nonisolated(unsafe) static var statuses: [PermissionCapability: PermissionStatus] = [:]
+
+    static func get(_ capability: PermissionCapability) -> PermissionStatus? {
+        lock.lock(); defer { lock.unlock() }
+        return statuses[capability]
+    }
+
+    static func set(_ capability: PermissionCapability, _ status: PermissionStatus) {
+        lock.lock(); defer { lock.unlock() }
+        statuses[capability] = status
+    }
+}
+
 // MARK: - 探针结果传递（跨线程一次性投递）
 
 /// 单条探针的跨线程结果盒：先完成者胜出，保证每条探针恰好投递一次。
@@ -186,6 +205,8 @@ private final class ProbeOutcomeBox: @unchecked Sendable {
 /// 三能力权限中心（@MainActor，生命周期与 app 一致）。
 @MainActor
 final class PermissionCenter: ObservableObject {
+    /// 单例：Sendable let 常量，非隔离上下文（后台监视器回调）可直接读取，
+    /// 再调用 nonisolated 的 status(of:)。
     static let shared = PermissionCenter()
 
     /// 最近一次完整判定的快照；start() 前为 nil。
@@ -232,8 +253,15 @@ final class PermissionCenter: ObservableObject {
     }
 
     /// 便捷读取：某能力的当前状态（快照未生成时返回 nil）。
-    func status(of capability: PermissionCapability) -> PermissionStatus? {
-        snapshot?.capabilities.first { $0.capability == capability }?.status
+    /// 实例版供主线程上下文调用；后台非隔离上下文请用 currentStatus(of:)。
+    nonisolated func status(of capability: PermissionCapability) -> PermissionStatus? {
+        PermissionStatusMirror.get(capability)
+    }
+
+    /// 非隔离静态入口：后台监视器回调（Layout 的 mouseMoved 等）从非隔离上下文
+    /// 读取状态时使用，避免触碰 MainActor 隔离的 `shared`。
+    nonisolated static func currentStatus(of capability: PermissionCapability) -> PermissionStatus? {
+        PermissionStatusMirror.get(capability)
     }
 
     /// 停止：取消全部计时器/工作项并移除观察者（applicationWillTerminate 调用）。
@@ -507,6 +535,11 @@ final class PermissionCenter: ObservableObject {
             system: Self.makeSystemInfo(),
             app: Self.makeAppInfo()
         )
+
+        // 更新跨线程状态镜像（非隔离读取方：Layout mouseMoved、监视器装/卸判定等）。
+        PermissionStatusMirror.set(.windowControl, windowState.status)
+        PermissionStatusMirror.set(.inputMonitoring, inputState.status)
+        PermissionStatusMirror.set(.eventPosting, eventState.status)
 
         scheduleNextPoll(externalStatus: windowState.status)
     }

@@ -68,10 +68,10 @@
 
 **独立验收**：`quickstart.md` 场景 F 的两个方向——F1 只关输入监控（拖动必须照常、仅键盘功能暂停、快捷键保留）、F2 只关窗口控制（拖动/悬停/右键暂停、快捷键保留、不崩溃），外加两者「重新打开后不重启即恢复」的路径。
 
-- [ ] T034 [US4] 在 `MacsyZones/App.swift` 抽出「安装/卸载全局监视器」函数，并**按事件类型分别绑定能力**：鼠标类 `leftMouseDown`（`:607`）、`leftMouseDragged`（`:611`）、`leftMouseUp`（`:615`）、`rightMouseDown`（`:984`）与 `MacsyZones/Layout.swift:1123` 的 `mouseMoved` 绑 `windowControl`；键盘类 `keyDown`+`flagsChanged`（`:866`）绑 `inputMonitoring`；对应能力 `!= .denied` 时安装（`unknown` 也安装，FR-013 只禁止假定可用、不要求未判定前自废功能）；不得把鼠标监视器绑到 `inputMonitoring`
-- [ ] T035 [US4] 通过 `PermissionCenter.onStatusChange` 实现按类型的状态迁移：`windowControl` → `granted` 补装鼠标类、→ `denied` 卸载鼠标类；`inputMonitoring` 同理只作用于键盘类，两类互不牵连；`PermissionCenter.stop()` 与 `applicationWillTerminate`（`MacsyZones/App.swift`）统一卸载并防重复安装（`research.md` R13、`data-model.md` 状态机）
-- [ ] T036 [US4] 实现降级矩阵（FR-012/FR-013/FR-014）：缺窗口控制 → 鼠标拖动/悬停高亮/右键菜单暂停、布局保存提示只读、横幅注明原因；缺输入监听 → 仅修饰键/吸附键驱动的布局切换暂停、鼠标拖动照常；Carbon 快捷键两者都保留；per-target 部分可控 → 诊断面板 `notes` 标注「部分目标受控」，不刷错误日志、不整体报未授权
-- [ ] T037 [US4] 构建并执行 `quickstart.md` 场景 F1/F2 与场景 B 的恢复路径（重新打开对应权限后不重启即恢复），把降级行为与恢复时间回填 `quickstart.md` 实测记录
+- [x] T034 [US4] 在 `MacsyZones/App.swift` 抽出「安装/卸载全局监视器」函数，并**按事件类型分别绑定能力**：鼠标类 `leftMouseDown`（`:607`）、`leftMouseDragged`（`:611`）、`leftMouseUp`（`:615`）、`rightMouseDown`（`:984`）与 `MacsyZones/Layout.swift:1123` 的 `mouseMoved` 绑 `windowControl`；键盘类 `keyDown`+`flagsChanged`（`:866`）绑 `inputMonitoring`；对应能力 `!= .denied` 时安装（`unknown` 也安装，FR-013 只禁止假定可用、不要求未判定前自废功能）；不得把鼠标监视器绑到 `inputMonitoring`
+- [x] T035 [US4] 通过 `PermissionCenter.onStatusChange` 实现按类型的状态迁移：`windowControl` → `granted` 补装鼠标类、→ `denied` 卸载鼠标类；`inputMonitoring` 同理只作用于键盘类，两类互不牵连；`PermissionCenter.stop()` 与 `applicationWillTerminate`（`MacsyZones/App.swift`）统一卸载并防重复安装（`research.md` R13、`data-model.md` 状态机）
+- [x] T036 [US4] 实现降级矩阵（FR-012/FR-013/FR-014）：缺窗口控制 → 鼠标拖动/悬停高亮/右键菜单暂停、布局保存提示只读、横幅注明原因；缺输入监听 → 仅修饰键/吸附键驱动的布局切换暂停、鼠标拖动照常；Carbon 快捷键两者都保留；per-target 部分可控 → 诊断面板 `notes` 标注「部分目标受控」，不刷错误日志、不整体报未授权
+- [x] T037 [US4] 构建并执行 `quickstart.md` 场景 F1/F2 与场景 B 的恢复路径（重新打开对应权限后不重启即恢复），把降级行为与恢复时间回填 `quickstart.md` 实测记录
 
 # 阶段 7：US5 跨 27.x 子版本与升级路径（P3）
 

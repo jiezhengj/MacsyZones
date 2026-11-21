@@ -138,6 +138,12 @@ bash scripts/permission-smoke.sh
 
 > 反向回归：F1 不得出现「拖动失效」，F2 不得出现「键盘切换仍报缺输入监控」——两条都是评审发现的绑定错位，必须各验一次。
 
+实测记录（2026-11-21，自动化部分完成；本机两项能力均为未授权态，F1 的「窗口控制已授权」分支与场景 B 恢复路径需 TCC 授权，留待人工）：
+
+- F2 方向（`windowControl=denied`，与 F2 预期的关闭分支一致）自动化验证：启动验证副本后进程存活、无 fatal/crash；首轮 `trigger=launch` 探针全部 `denied` 后，状态迁移日志出现且仅出现一次 `probe=degrade` 记录（「降级提示：拖动吸附与布局自动保存已暂停（只读模式），Carbon 快捷键不受影响」），证明降级路径与一次性提示生效（`/tmp/m003-scenarioF-f1.log`）。
+- 鼠标类监视器未安装（`windowControl == .denied` 不装）、悬停高亮路径按 `windowControl` 状态门控（`Layout.swift` `handleMouseMoved`），编译与日志证据通过；拖动/高亮的可视行为留待人工。
+- 留待人工：F1 完整分支（需 `windowControl=granted` 才能验证「缺输入监控时拖动照常」）；F2 的「重新打开后不重启恢复拖动」（需真授权一次）；场景 B 授权后的恢复时间实测（`research.md` R13 补装路径已由代码与断言覆盖，实机时间留待人工）。
+
 ### 场景 G：已授权用户多次登录不误报（SC-003）
 
 1. 在已授权状态下注销并重新登录 5 次（或用 `killall MacsyZones` + 重新启动模拟启动路径，但登录项路径必须真登录）。

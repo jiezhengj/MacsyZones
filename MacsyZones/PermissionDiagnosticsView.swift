@@ -82,6 +82,18 @@ struct PermissionDiagnosticsView: View {
                     .font(.caption2)
                     .foregroundColor(.orange)
             }
+
+            // T036（FR-014）：per-target 部分可控 → 标注「部分目标受控」，不整体报未授权。
+            if state.capability == .windowControl, state.status == .granted {
+                let frontmost = state.probes.first { $0.id == "frontmost" }?.status
+                let finder = state.probes.first { $0.id == "finder" }?.status
+                let partial = PermissionRules.partialTargets(frontmost: frontmost ?? .unknown, finder: finder ?? .unknown)
+                if !partial.isEmpty {
+                    Text("部分目标受控：\(partial.joined(separator: "、"))（该系统授权按应用区分）")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                }
+            }
         }
         .padding(.vertical, 2)
     }

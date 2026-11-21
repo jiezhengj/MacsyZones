@@ -992,7 +992,7 @@ struct PermissionStatusBanner: View {
                 if snapshot.overall == .denied {
                     bannerRow(
                         color: .red,
-                        text: "MacsyZones 未获得窗口控制权限，拖动吸附功能已暂停。",
+                        text: "MacsyZones 未获得窗口控制权限：拖动吸附与布局自动保存已暂停（只读模式），Carbon 快捷键不受影响。",
                         systemImage: "exclamationmark.triangle.fill"
                     ) {
                         buttonsRow {

@@ -1120,8 +1120,13 @@ class LayoutWindow: ObservableObject {
         window.orderOut(nil)
         editorBarWindow.orderOut(nil)
         
-        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
-            self?.handleMouseMoved(event: event)
+        // T034：mouseMoved 属鼠标类事件，绑 windowControl——对应能力 == .denied 时不安装
+        // （unknown 也安装，FR-013）；卸载由 WindowObserver 生命周期与 T035 状态迁移处理。
+        // 本方法为非隔离上下文，用 currentStatus(of:) 读取跨线程镜像。
+        if PermissionCenter.currentStatus(of: .windowControl) != .denied {
+            mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
+                self?.handleMouseMoved(event: event)
+            }
         }
     }
     
@@ -1290,6 +1295,9 @@ class LayoutWindow: ObservableObject {
     }
     
     func handleMouseMoved(event: NSEvent) {
+        // T036：windowControl == .denied 时悬停高亮暂停（FR-012 降级矩阵）。
+        // 本方法为非隔离上下文，用 currentStatus(of:) 读取跨线程镜像。
+        guard PermissionCenter.currentStatus(of: .windowControl) != .denied else { return }
         guard appSettings.showSnapResizersOnHover,
               appSettings.snapResize,
               !isFitting, !isEditing,

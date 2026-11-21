@@ -571,6 +571,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
         Task { @MainActor in
             PermissionCenter.shared.start()
 
+            // T035：按能力类型接线监视器装/卸（windowControl→鼠标类、inputMonitoring→键盘类）。
+            wirePermissionMonitorLifecycle()
+
             // 首轮探测完成后接线：未授权 → 展示一次非模态引导；已授权 → 补齐 onboarding
             // （原逻辑在探测同步完成后立即判定，此处等首轮完成，行为等价且单点触发防双弹）。
             permissionGuidanceCancellable = PermissionCenter.shared.$snapshot
@@ -653,22 +656,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
             debugLog("All apps are being observed for window movement.")
             
             Task { @MainActor in
-                mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { event in
-                    onMouseDown(event: event)
-                }
-                
-                mouseDragMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDragged) { event in
-                    onMouseDragged(event: event)
-                }
-                
-                mouseUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { event in
-                    onMouseUp(event: event)
-                }
-                
+                // T034：全局监视器按能力类型分别安装（R13）——
+                // 鼠标类（leftMouseDown/leftMouseDragged/leftMouseUp/rightMouseDown）绑 windowControl，
+                // 键盘类（keyDown+flagsChanged）绑 inputMonitoring；
+                // 对应能力 != .denied 时安装（unknown 也安装，FR-013）。
+                installMouseMonitors()
+                installKeyboardMonitor()
+
                 spaceLayoutPreferences.startObserving()
-                monitorShortcuts()
-                monitorRightClick()
-                
+
                 spaceLayoutPreferences.switchToCurrent()
                 
                 macsyReady.isReady = true
@@ -901,7 +897,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
         }
     }
     
+    @MainActor
     func monitorShortcuts() {
+        // T034：防重复安装。
+        guard shortcutMonitor == nil else { return }
         var modifierKeyTask: DispatchWorkItem?
         var snapKeyUsed = false
         var prevFlags = NSEvent.ModifierFlags()
@@ -1024,6 +1023,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
     }
     
     private func monitorRightClick() {
+        // T034：防重复安装。
+        guard rightMouseMonitor == nil else { return }
         rightMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .rightMouseDown) { event in
             if !macsyReady.isReady { return }
             if event.buttonNumber != 1 { return }
@@ -1061,12 +1062,88 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
             WindowObserverManager.shared.cancelPendingScans()
         }
 
-        for monitor in [mouseDownMonitor,
-                        mouseDragMonitor,
-                        mouseUpMonitor,
-                        rightMouseMonitor,
-                        shortcutMonitor].compactMap({ $0 }) {
+        // T035：与 PermissionCenter.stop() 同口径——统一走按能力类型的卸载函数（幂等）。
+        MainActor.assumeIsolated {
+            uninstallMouseMonitors()
+            uninstallKeyboardMonitor()
+            PermissionCenter.shared.stop()
+        }
+    }
+
+    /// 安装鼠标类全局监视器（绑 windowControl）。
+    @MainActor
+    func installMouseMonitors() {
+        guard PermissionCenter.shared.status(of: .windowControl) != .denied else { return }
+        if mouseDownMonitor == nil {
+            mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { event in
+                onMouseDown(event: event)
+            }
+        }
+        if mouseDragMonitor == nil {
+            mouseDragMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDragged) { event in
+                onMouseDragged(event: event)
+            }
+        }
+        if mouseUpMonitor == nil {
+            mouseUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { event in
+                onMouseUp(event: event)
+            }
+        }
+        monitorRightClick()
+    }
+
+    /// 安装键盘类全局监视器（绑 inputMonitoring）。
+    @MainActor
+    func installKeyboardMonitor() {
+        guard PermissionCenter.shared.status(of: .inputMonitoring) != .denied else { return }
+        monitorShortcuts()
+    }
+
+    /// 卸载鼠标类全局监视器（幂等，windowControl → .denied 时调用）。
+    @MainActor
+    func uninstallMouseMonitors() {
+        for monitor in [mouseDownMonitor, mouseDragMonitor, mouseUpMonitor, rightMouseMonitor].compactMap({ $0 }) {
             NSEvent.removeMonitor(monitor)
+        }
+        mouseDownMonitor = nil
+        mouseDragMonitor = nil
+        mouseUpMonitor = nil
+        rightMouseMonitor = nil
+    }
+
+    /// 卸载键盘类全局监视器（幂等，inputMonitoring → .denied 时调用）。
+    @MainActor
+    func uninstallKeyboardMonitor() {
+        if let shortcutMonitor {
+            NSEvent.removeMonitor(shortcutMonitor)
+        }
+        shortcutMonitor = nil
+    }
+
+    /// T035：按能力类型驱动监视器装/卸的状态迁移接线（research.md R13、data-model.md 状态机）。
+    /// PermissionCenter 在主线程回调；这里用 Task { @MainActor } 落回主线程执行装/卸。
+    @MainActor
+    func wirePermissionMonitorLifecycle() {
+        PermissionCenter.shared.onStatusChange = { capability, _, new in
+            Task { @MainActor in
+                switch capability {
+                case .windowControl:
+                    if new == .denied {
+                        self.uninstallMouseMonitors()
+                        showLayoutReadOnlyHintIfNeeded()
+                    } else if new == .granted {
+                        self.installMouseMonitors()
+                    }
+                case .inputMonitoring:
+                    if new == .denied {
+                        self.uninstallKeyboardMonitor()
+                    } else if new == .granted {
+                        self.installKeyboardMonitor()
+                    }
+                case .eventPosting:
+                    break
+                }
+            }
         }
     }
 }
@@ -1103,3 +1180,30 @@ func refreshTrayPermissionMark() {
         button.attributedTitle = NSAttributedString()
     }
 }
+
+// MARK: - 降级提示（T036，FR-012）
+
+/// 只读提示一次性标志：denied 后仅提示一次，避免每次操作刷提示。
+var didShowLayoutReadOnlyHint = false
+
+/// 缺窗口控制权限时的一次性只读提示：拖动吸附与布局自动保存已暂停；
+/// Carbon 快捷键不受影响。写日志与 debugLog，不弹模态（R5）。
+@MainActor
+func showLayoutReadOnlyHintIfNeeded() {
+    guard PermissionCenter.shared.status(of: .windowControl) == .denied,
+          !didShowLayoutReadOnlyHint
+    else { return }
+    didShowLayoutReadOnlyHint = true
+    permissionLogRecord(
+        capability: "windowControl",
+        id: "degrade",
+        target: "system",
+        status: "denied",
+        axError: nil,
+        latencyMs: 0,
+        trigger: "manual",
+        error: "降级提示：拖动吸附与布局自动保存已暂停（只读模式），Carbon 快捷键不受影响"
+    )
+    debugLog("窗口控制权限缺失：拖动吸附与布局自动保存已暂停（只读模式），Carbon 快捷键不受影响。")
+}
+
