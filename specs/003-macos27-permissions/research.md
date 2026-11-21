@@ -168,7 +168,7 @@
 2. **面板归属不确定**：本 app 是否出现在 `System & App Protection Override` 还是 `无障碍`，需实机授权时确认；引导按「先主后备」措辞，验证时记录实测结果并回填 `quickstart.md`。实测进展（2026-11-21）：本机为 macOS 27.3（Build 26C5047e），但当前本 bundle 处于未授权态（探针 `axError=-25211`，`preflight` denied），系统设置面板归属须在真实授权流程中由用户确认（未授权状态下无面板条目可查）；引导文案已按「先 Override 后无障碍」实现，深链落点验证留待场景 A 人工部分与场景 B。
 3. **per-target 授权范围**：27.3 beta 2 已知问题（Override app 无法控制 Safari/WebKit app）可能让部分用户「部分窗口不可吸附」；诊断面板需如实呈现，不在本 feature 内绕过。
 4. **27.3 不在 SDK 内**：无法编译新符号，若苹果后续提供 `AXIsProcessTrusted` 的替代 API 或 entitlement，需另立 feature。
-5. **升级路径无法在本机自动化**：本机已升级到 27.3，27.2→27.3 的「已授权保持不变」只能在用户机器上手工验证，quickstart 给出步骤。
+5. **升级路径无法在本机自动化**：本机已升级到 27.3，27.2→27.3 的「已授权保持不变」只能在用户机器上手工验证，quickstart 给出步骤。实测记录（2026-11-21，T039）：**未实机验证**——本机已是 27.3（Build 26C5047e），无法回退复现「27.2 授权 → 升级」；替代证据为引导映射的双形态真实函数断言（`check_permission_model.sh`，MODE=extract，50 assertions）与苹果「已授予权限保持不变」的公开声明；quickstart.md 场景 D 已同步标注。
 
 ## R14：可反复启动的构建产物
 

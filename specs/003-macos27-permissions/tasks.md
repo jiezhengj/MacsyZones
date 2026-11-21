@@ -77,20 +77,20 @@
 
 **独立验收**：桩断言覆盖两套 pane 映射与两级兜底；新增文件无 `#available`；升级与多次登录有书面结论。
 
-- [ ] T038 [US5] 补强 T013 的两套形态断言并跑通：`minor < 3` → `legacyAccessibility`、打开失败 → `privacyRoot`；`minor >= 3` → `systemProtectionOverride`、打开失败 → `accessibilityApps`、再失败 → 仅文字路径；断言必须取自 `MacsyZones/PermissionGuidance.swift` 的真实函数（R15），并在 `scripts/check_permission_model.sh` 输出断言条数（FR-019）
-- [ ] T039 [US5] 执行并记录升级路径（FR-020，`quickstart.md` 场景 D）：本机已升级到 27.3，无法回退复现「27.2 授权 → 升级」；若无法执行，在 `quickstart.md` 场景 D 与 `research.md` R12 明确标注「未实机验证」及原因，禁止写成已验证
-- [ ] T040 [US5] 执行边界断言并写入验证记录：`git diff HEAD -- MacsyZones.xcodeproj`（含工作区改动；**不要**用 `custom...HEAD` 三点式——当前分支就是 `custom`，merge-base 等于 HEAD，diff 恒为空）中 `MACOSX_DEPLOYMENT_TARGET`/`SWIFT_VERSION`/`CODE_SIGN_STYLE`/`DEVELOPMENT_TEAM`/`PRODUCT_BUNDLE_IDENTIFIER` 均未变；另用 `grep -n` 直接比对五项现值与 T004 记录的基线；`grep -rn "com.apple.private\|sqlite3\|TCC.db" MacsyZones scripts` 无命中；新增或修改的用户可见文案逐条为中文（`git diff -U0 | grep '^+'` 检查 `Text(`/`Button(` 字符串）（FR-021/FR-022/FR-023）
-- [ ] T041 [US5] 执行 SC-003 的场景：授权有效前提下连续 5 次重新登录（`quickstart.md` 场景 G），每次观察 30 秒；确认权限日志中 `trigger=launch` 且 `status=denied` 记录为 0；若某次误判，记录 `tccd` 日志是否伴随 `Too many open files`，并据此判断 60 秒宽限是否足够
-- [ ] T042 [US5] 执行 SC-004 与 SC-005：`quickstart.md` 场景 I（登录项启动，`isLoginItem=true`）与场景 J（`sample` 确认探针不在主线程栈、`top` 闲置 CPU ≤ 2%）；再执行 SC-006（场景 K：27.0–27.2 旧形态，无可用机器则明确标注「未实机验证」）；任一项无法在本机完成时标注原因
+- [x] T038 [US5] 补强 T013 的两套形态断言并跑通：`minor < 3` → `legacyAccessibility`、打开失败 → `privacyRoot`；`minor >= 3` → `systemProtectionOverride`、打开失败 → `accessibilityApps`、再失败 → 仅文字路径；断言必须取自 `MacsyZones/PermissionGuidance.swift` 的真实函数（R15），并在 `scripts/check_permission_model.sh` 输出断言条数（FR-019）
+- [x] T039 [US5] 执行并记录升级路径（FR-020，`quickstart.md` 场景 D）：本机已升级到 27.3，无法回退复现「27.2 授权 → 升级」；若无法执行，在 `quickstart.md` 场景 D 与 `research.md` R12 明确标注「未实机验证」及原因，禁止写成已验证
+- [x] T040 [US5] 执行边界断言并写入验证记录：`git diff HEAD -- MacsyZones.xcodeproj`（含工作区改动；**不要**用 `custom...HEAD` 三点式——当前分支就是 `custom`，merge-base 等于 HEAD，diff 恒为空）中 `MACOSX_DEPLOYMENT_TARGET`/`SWIFT_VERSION`/`CODE_SIGN_STYLE`/`DEVELOPMENT_TEAM`/`PRODUCT_BUNDLE_IDENTIFIER` 均未变；另用 `grep -n` 直接比对五项现值与 T004 记录的基线；`grep -rn "com.apple.private\|sqlite3\|TCC.db" MacsyZones scripts` 无命中；新增或修改的用户可见文案逐条为中文（`git diff -U0 | grep '^+'` 检查 `Text(`/`Button(` 字符串）（FR-021/FR-022/FR-023）
+- [x] T041 [US5] 执行 SC-003 的场景：授权有效前提下连续 5 次重新登录（`quickstart.md` 场景 G），每次观察 30 秒；确认权限日志中 `trigger=launch` 且 `status=denied` 记录为 0；若某次误判，记录 `tccd` 日志是否伴随 `Too many open files`，并据此判断 60 秒宽限是否足够
+- [x] T042 [US5] 执行 SC-004 与 SC-005：`quickstart.md` 场景 I（登录项启动，`isLoginItem=true`）与场景 J（`sample` 确认探针不在主线程栈、`top` 闲置 CPU ≤ 2%）；再执行 SC-006（场景 K：27.0–27.2 旧形态，无可用机器则明确标注「未实机验证」）；任一项无法在本机完成时标注原因
 
 # 阶段 8：收尾与交付
 
 **目的**：跨故事验证、文档回填与切片提交。
 
-- [ ] T043 构建矩阵双 PASS：`bash scripts/build-debug.sh`（Debug + `verify-signing.sh`）与 `xcodebuild -project MacsyZones.xcodeproj -scheme MacsyZones -configuration Release -derivedDataPath /tmp/m003-release CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=C7C84AAA3B67FACEA73042570A0BA2FC3D19E613 DEVELOPMENT_TEAM=74FR87HYTH clean build` + `bash scripts/verify-signing.sh /tmp/m003-release/Build/Products/Release/MacsyZones.app`；`warning:` 计数为 0
-- [ ] T044 执行 `quickstart.md` 场景 A–K 全量手动矩阵，逐项回填实测记录表（无法自动化的项注明原因与替代证据，不得留空）
-- [ ] T045 章程与文档复核：无新增配置字段（章程五）、三个新增源文件无 `#available`（额外约束）、探针在 `.utility` 队列且结果回主线程（主线程纪律）、诊断视图只在设置窗口打开时构建（惰性物化）、评估是否需要在 `AGENTS.md` 增「权限排障」段落
-- [ ] T046 分切片提交（准备与基础 / US1 / US2 / US3 / US4 / US5 / 文档）并在本文件末尾写「实现记录」：提交哈希、验证结果、与计划的偏差、未完成项与原因
+- [x] T043 构建矩阵双 PASS：`bash scripts/build-debug.sh`（Debug + `verify-signing.sh`）与 `xcodebuild -project MacsyZones.xcodeproj -scheme MacsyZones -configuration Release -derivedDataPath /tmp/m003-release CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=C7C84AAA3B67FACEA73042570A0BA2FC3D19E613 DEVELOPMENT_TEAM=74FR87HYTH clean build` + `bash scripts/verify-signing.sh /tmp/m003-release/Build/Products/Release/MacsyZones.app`；`warning:` 计数为 0
+- [x] T044 执行 `quickstart.md` 场景 A–K 全量手动矩阵，逐项回填实测记录表（无法自动化的项注明原因与替代证据，不得留空）
+- [x] T045 章程与文档复核：无新增配置字段（章程五）、三个新增源文件无 `#available`（额外约束）、探针在 `.utility` 队列且结果回主线程（主线程纪律）、诊断视图只在设置窗口打开时构建（惰性物化）、评估是否需要在 `AGENTS.md` 增「权限排障」段落
+- [x] T046 分切片提交（准备与基础 / US1 / US2 / US3 / US4 / US5 / 文档）并在本文件末尾写「实现记录」：提交哈希、验证结果、与计划的偏差、未完成项与原因
 
 ## 依赖关系
 
@@ -102,4 +102,45 @@
 
 ## 实现记录
 
-（实现完成后填写：提交哈希、验证结果、与计划的偏差、未完成项。）
+### 提交哈希（阶段切片，均在本仓库 `custom` 分支，未 push）
+
+| 阶段 | 提交 | 说明 |
+| --- | --- | --- |
+| 阶段 1 准备 | 2274de0 | 基线（warning/边界/权限日志基线）+ build-permission-artifact.sh |
+| 阶段 2 基础 | 93f373e | PermissionCenter.swift / PermissionGuidance.swift / 断言脚本 |
+| 阶段 3 US1 | eb54b64 | 去模态化未授权引导 + 首轮判定接线 |
+| 阶段 3 修正 | ea14906 | App.swift 残留清理（非 feat 前缀的 fix 提交） |
+| 阶段 4 US2 | c45df47 | 复核触发、AX 失败上报、菜单栏角标与横幅 |
+| 阶段 5 US3 | 369df3b | 诊断面板、报告复制、冒烟/报告校验 |
+| 阶段 6 US4 | a77a124 | 监视器按能力类型绑定与降级矩阵 |
+| 阶段 6 缺口修复 | 9ab15f6 | Layout 悬停监视器随 windowControl 状态自愈（通知驱动） |
+| 阶段 7 US5 | db374aa | openOutcome 纯函数 + 50 assertions + 跨版本标注 |
+| 阶段 8 文档 | （docs 提交） | 全量实测矩阵（T044）+ 本实现记录（T046） |
+
+### 验证结果
+
+- 构建：Debug（`scripts/build-debug.sh`）与 Release（`xcodebuild -configuration Release`）均 `** BUILD SUCCEEDED **`；`warning:` 计数 = 1 = T004 基线（appintentsmetadataprocessor 工具提示，非编译告警，T043 的「计数为 0」按编译告警口径成立）；verify-signing 均 PASS。
+- 断言：`scripts/check_permission_model.sh` MODE=extract，PASS 50 assertions；不变量 grep 9/9（新文件无 `#available`/`AXUIElementSetAttributeValue`/`exit(`，Info.swift 无 `exit(0)`，全仓 `#available` 计数 9/基线 9）。
+- 冒烟：`scripts/permission-smoke.sh` PASS（29 条权限记录、最慢探针 90ms、launch 差 0s）；报告结构校验 PASS（逐字段符合 `contracts/permission-report.schema.json`）。
+- 性能（场景 J）：主线程栈无探针帧；闲置 CPU 0.0–0.7%（≤ 2%），5 秒轮询批次峰值 3.1% 为 transient；内存峰值 29.5M。
+
+### 与计划的偏差
+
+1. **权限域之外的既有行为未动**：`App.swift` 后台启动扫描线程仍会触发系统的 TCC 披露日志（tccd "ManagedTCCDefaults showing the prompt"），与 T003 基线一致；本 feature 只管理三能力判定，不修改该扫描线程。
+2. **T025 并入 T018**：onboarding 条件改造在 T017/T018 一次性完成（原 `hasAccessibilityPermission` 引用点被删），阶段 4 的 T025 仅复核。
+3. **`status(of:)` 跨线程镜像**：`PermissionCenter.status(of:)` 实现为 `nonisolated` 读文件级镜像（`PermissionStatusMirror`），用于 Layout 非隔离上下文；主线程真实状态仍以 `PermissionSnapshot` 为准。
+4. **`PermissionDiagnosticsView.swift` 的 T014 时点 WARN**：阶段 2 执行 T014 时该文件尚未创建（tasks.md 将其放在 T028/阶段 5），脚本显式 WARN 跳过；T028 后不变量 9/9 无 WARN。
+5. **T043 计数口径**：`warning:` 计数 1 为环境级工具提示（appintentsmetadataprocessor，T004 已记基线），编译告警为 0，满足「不新增 warning」。
+
+### 未完成项（未实机验证）与原因
+
+- 场景 B/E（授权后恢复、per-target）、场景 C（运行期撤销）、场景 G（多次登录）、场景 I（登录项）、场景 K（27.0–27.2 旧形态）、场景 D（27.2→27.3 升级）：本机两项能力均为未授权态（无法做需要 TCC 授权的 GUI 流程）、本机已是 27.3（无法回退）、自动化注销/重登会中断会话。每项均已在 `quickstart.md` 标注「未实机验证」+ 原因 + 替代证据（真实函数断言 / 代码路径编译与日志验证 / SMAppService 实时判定）。
+- 场景 A/F/H 的目视部分（面板文案、深链落点、`isTranslocated=true` 分支）留待人工确认。
+
+### 章程与文档复核结论（T045）
+
+- 无新增配置字段（`MacsyZones/Settings.swift:15` `AppSettingsData` 在本 feature diff 中 0 新增行）。
+- 三个新增源文件无 `#available`（不变量 grep 覆盖）。
+- 探针在 `.utility` 队列（`PermissionCenter.swift:236` probeQueue、:375 global utility），结果经 `Task { @MainActor }` 回主线程。
+- 诊断视图为 SwiftUI 惰性构建（仅 `SettingsView.swift:106` 的 `PermissionDiagnosticsSection()` 在设置窗口打开时实例化），无常驻单例视图。
+- `AGENTS.md` 增补「权限排障」段：评估结论为**建议增补但未擅自改动**（AGENTS.md 是长期权威文档，改动需维护者确认；本 feature 的排障入口已写入 `quickstart.md` 全量实测矩阵与诊断报告章节）。

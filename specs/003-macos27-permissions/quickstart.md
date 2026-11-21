@@ -120,6 +120,8 @@ bash scripts/permission-smoke.sh
 
 预期：无需重新授权即可用（苹果声明「已授予的权限保持不变」）；若实际要求重新授权，把实测结果写进 `research.md` R12 与 `spec.md` 的假设段落，并在引导里补一句说明。**本机已升级到 27.3，此场景只能标注「未实机验证」或由用户提供第二台机器。**
 
+实测记录（2026-11-21）：**未实机验证**。原因：本机已是 macOS 27.3（Build 26C5047e），无法回退到 27.2 复现「27.2 授权 → 升级」路径。已做的替代证据：① 引导映射代码按 `ProcessInfo.operatingSystemVersion.minor >= 3` 双形态实现（27.0–27.2 → Device Control and Data Access；27.3+ → System & App Protection Override / 无障碍），由 `scripts/check_permission_model.sh` 的真实函数断言覆盖（50 assertions）；② R2/R15 决策均基于苹果公开的「已授予权限在升级后保持不变」声明；③ 待用户在真实 27.2 机器上补验时，直接执行上方步骤即可。
+
 ### 场景 E：per-target 部分可用（🔑）
 
 1. 授权后分别尝试吸附 Finder 窗口与 Safari 窗口（27.3 beta 2 已知问题：Override app 可能无法与 WebKit app 交互）。
@@ -151,6 +153,8 @@ bash scripts/permission-smoke.sh
 
 预期：5 次均不出现「未授权」提示；权限日志中 `trigger=launch` 且 `status=denied` 的记录为 0。若某次出现误判，记录当时 `tccd` 是否伴随 `Too many open files`（登录期文件描述符耗尽），并作为宽限窗口是否足够的依据。
 
+实测记录（2026-11-21）：**未实机验证**。原因：场景要求「已授权」前提下连续 5 次注销/重登，本机两项能力均为未授权态（`trigger=launch status=denied` 记录存在属未授权正常现象，无法用于验证「已授权不误报」），且自动化注销登录会中断本机交互会话。已做的替代证据：① 启动路径等价验证（`killall` + 重新启动）已多次执行，首轮 `trigger=launch` 之后才进入引导展示（`hasCompletedFirstCheck` 门控），未出现未授权提示闪现；② 宽限状态机与 `hasCompletedFirstCheck` 的边界行为由 `check_permission_model.sh` 真实函数断言覆盖（含 59s/60s/61s 宽限边界）；③ 留待用户在已授权机器上按上方步骤补验。
+
 ### 场景 H：从 `/tmp` 运行与 translocation（SC-004）
 
 1. 把构建产物拷到 `/tmp/mz-tmp-run/MacsyZones.app` 直接启动。
@@ -172,6 +176,8 @@ bash scripts/permission-smoke.sh
 
 预期：`isLoginItem=true`；登录后首轮检测不早于窗口观察就绪，且无「未知」造成的引导闪现。
 
+实测记录（2026-11-21）：**未实机验证**。原因：场景要求真登录项 + 注销重登，自动化无法在不中断会话的前提下完成；本机也未把验证副本设为登录项。已做的替代证据：① `AppInfo.isLoginItem` 由 `SMAppService.mainApp.status == .enabled` 实时判定（真实 API，无硬编码）；② 首轮探测时序由 `PermissionCenter.start()` 内 `recheck(trigger: "launch")` 与 `hasCompletedFirstCheck` 门控保证（未完成首轮不展示引导，与登录时机无关）；③ 留待用户设置登录项后目视确认诊断面板 `是否登录项=是`。
+
 ### 场景 J：性能采样（SC-005）
 
 ```bash
@@ -183,6 +189,12 @@ top -pid "$PID" -l 5 -stats pid,cpu | tail -6
 
 预期：`sample` 结果里探针不出现在主线程栈顶（都在后台队列）；`top` 的闲置 CPU 平均值 ≤ 2%。
 
+实测记录（2026-11-21，自动化完成，真数据）：
+
+- `sample`（3 秒采样，`/tmp/m003-sample.txt`）：主线程栈（`DispatchQueue_1: com.apple.main-thread`）中 **无任何探针帧**——grep `probe|guardedProbe|permissions.probe|ProbeOutcomeBox` 在主线程调用图 0 命中（探针都在 `MeowingCat.MacsyZones.permissions.probe` 后台 utility 队列）。
+- `top` 闲置 CPU：稳态采样 0.0% / 0.7%（达标 ≤ 2%）；5 秒轮询探针批次瞬间出现 3.1% 峰值（transient，随后回落），按「闲置」口径达标。
+- 进程物理内存峰值 29.5M，无异常增长。
+
 ### 场景 K：27.0–27.2 旧形态手工验证（SC-006）
 
 **前置**：需要一台仍在 27.0–27.2 的机器（本机已是 27.3，无法降级）。若没有可用机器，本场景**必须标注「未实机验证」**，不得写成已验证（标注方式同场景 D，见 `tasks.md` T042；T039 只负责场景 D 的升级路径标注）。
@@ -192,6 +204,26 @@ top -pid "$PID" -l 5 -stats pid,cpu | tail -6
 3. 确认深链失败时回退到 `privacyRoot`（隐私与安全性根面板）。
 
 预期：三处行为与 27.3+ 分支表格一致（`research.md` R3 的两套映射）；诊断报告 `system.productVersion` 落在 `27.0`–`27.2` 时走 `legacyAccessibility` 分支。
+
+实测记录（2026-11-21）：**未实机验证**。原因：需要仍在 27.0–27.2 的机器，本机已是 27.3（Build 26C5047e），无法降级。已做的替代证据：`legacyAccessibility`/`privacyRoot` 分支映射与深链由 `check_permission_model.sh` 抽取真实函数执行断言（`primaryPane(forMinor: 0/1/2) == .legacyAccessibility`、`fallbackPane(forMinor: 2) == .privacyRoot`、`deepLinkString` 四键逐字断言，MODE=extract 共 50 assertions）；实机目视三步留待 27.0–27.2 机器。
+
+## 全量实测矩阵汇总（T044，2026-11-21）
+
+| 场景 | 状态 | 证据 |
+| --- | --- | --- |
+| A 未授权启动 | 自动化部分完成 | 非模态引导面板出现（420×700 左半区）、首轮全 denied、5s 轮询、探针 <100ms、不崩溃；文案目视/深链落点留待人工 |
+| B 授权后启动 | 机制已实现，恢复分支未实机验证 | 首轮门控 + 5s 轮询 + 硬触发接线编译通过；需已授权机器目视 |
+| C 运行期撤销 | 机制已实现，未实机验证 | 30s 轮询 + 即时复核代码路径与断言覆盖 |
+| D 升级保持 | 未实机验证 | 本机已是 27.3；双形态真实函数断言 50 assertions |
+| E per-target | 机制已实现，未实机验证 | partialTargets 判定 + 诊断面板标注代码就绪；需真授权复现 |
+| F 能力降级矩阵 | F2 方向自动化完成 | degrade 提示恰一次、鼠标类不装、Carbon 保留；F1/恢复留待人工 |
+| G 多次登录不误报 | 未实机验证 | 需已授权 + 真登录；替代：启动路径等价验证 + 宽限边界断言 |
+| H /tmp translocation | 自动化部分完成 | /private/tmp 运行存活、无 quarantine、isTranslocated 判定真实；面板目视留待人工 |
+| I 登录项 | 未实机验证 | SMAppService 实时判定 + 首轮门控 |
+| J 性能采样 | 自动化完成 | 主线程栈无探针帧；闲置 CPU 0.0–0.7%（≤2%），探针批次峰值 3.1% transient；内存峰值 29.5M |
+| K 旧形态 27.0–27.2 | 未实机验证 | 无旧版机器；legacyAccessibility/privacyRoot 真实函数断言覆盖 |
+
+构建与签名：Debug（scripts/build-debug.sh）与 Release（xcodebuild -configuration Release）均 BUILD SUCCEEDED，`warning:` 计数 = 基线（1，appintentsmetadataprocessor 工具提示），verify-signing 均 PASS；断言脚本 `check_permission_model.sh` MODE=extract PASS 50 assertions、不变量 grep 9/9；冒烟 `permission-smoke.sh` PASS（29 条权限记录、最慢探针 90ms、launch 差 0s）；报告校验 PASS: 报告结构符合契约。
 
 ## 五、诊断报告
 
