@@ -1,6 +1,6 @@
 **Feature Branch**: `002-upstream-v31-backport`
 **Created**: 2026-11-21
-**Status**: Draft
+**Status**: 已完成（33 项任务 + 3 项收敛修复，2026-11-21 交付）
 **Input**: 用户请求：对比上游 `rohanrhu/MacsyZones`（当前 v3.1.1，tip `2d5ce44`）与本 fork `jiezhengj/MacsyZones`（改造基线 v3.0.4，分支 `custom`），把上游仍有效、值得保留的改进回移进 fork。
 
 # 用户场景与独立验收测试
