@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jiezhengj/MacsyZones/specs/003-macos27-permissions/contracts/permission-report.schema.json",
+  "title": "MacsyZones 权限诊断报告",
+  "description": "用户在「设置 → 权限 → 复制报告」时生成并粘贴到 issue 的结构。生成方为 MacsyZones（Swift），消费方为人或脚本；字段只增不改，破坏性变更必须提升 schemaVersion。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "app", "system", "capabilities"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "app": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["marketingVersion", "build", "bundleID", "teamID", "path", "isTranslocated", "isLoginItem"],
+      "properties": {
+        "marketingVersion": { "type": "string", "examples": ["2.0.0"] },
+        "build": { "type": "string", "examples": ["1"] },
+        "bundleID": { "type": "string", "const": "MeowingCat.MacsyZones" },
+        "teamID": { "type": "string", "const": "74FR87HYTH" },
+        "path": { "type": "string" },
+        "isTranslocated": { "type": "boolean" },
+        "isLoginItem": { "type": "boolean" }
+      }
+    },
+    "system": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["productVersion", "build", "arch"],
+      "properties": {
+        "productVersion": { "type": "string", "examples": ["27.3"] },
+        "build": { "type": "string", "examples": ["26C5047e"] },
+        "arch": { "type": "string", "enum": ["arm64", "x86_64"] }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "lastCheckedAt", "probes"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": ["windowControl", "inputMonitoring", "eventPosting"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["granted", "denied", "unknown", "notRequired"]
+          },
+          "lastCheckedAt": { "type": "string", "format": "date-time" },
+          "lastError": { "type": ["string", "null"] },
+          "trigger": {
+            "type": "string",
+            "enum": ["launch", "activate", "wake", "ax-failure", "manual", "poll"]
+          },
+          "probes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "target", "status", "latencyMs"],
+              "properties": {
+                "id": { "type": "string", "enum": ["frontmost", "finder", "api", "preflight"] },
+                "target": { "type": "string" },
+                "axError": { "type": ["integer", "null"] },
+                "status": { "type": "string", "enum": ["granted", "denied", "unknown", "notRequired"] },
+                "latencyMs": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "人类可读的附加说明，例如「部分目标未授权」「系统面板与预期不一致」。"
+    }
+  }
+}
