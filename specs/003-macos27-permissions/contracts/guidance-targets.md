@@ -33,12 +33,14 @@
 | `denied` | 可用（首选 pane） | 可用 | 每 5s 复核，最多 24 次 |
 | `unknown` | 可用 | 可用 | 同上，并在诊断面板显示 `lastError` |
 | `granted` | 可用（供用户复核） | 可用 | 每 30s 复核 |
-| `granted` + 可疑（宽限中） | 可用 | 可用 | 60s 后自动复检，期间不弹任何提示 |
+| `granted` + 可疑（宽限中） | 可用 | 可用 | 仅在「距进程启动 < 60s」时出现；60s 后自动复检，期间不弹任何提示 |
+| `granted` + 部分目标受控 | 可用（供用户补授权） | 可用 | 正常运行；诊断 `notes` 标注「部分目标受控」，不提示未授权 |
 
 ## 演示/冒烟契约
 
-`scripts/permission-smoke.sh` 依赖以下可观察输出（`log show --predicate 'subsystem == "MeowingCat.MacsyZones" AND category == "permissions"'`）：
+`scripts/permission-smoke.sh` 依赖 `~/Applications/MacsyZones-dbg.app`（由 `scripts/build-permission-artifact.sh` 产出，见 `research.md` R14）与以下可观察输出（`log show --predicate 'subsystem == "MeowingCat.MacsyZones" AND category == "permissions"'`）：
 
 - 进程启动 10 秒内至少一条 `capability=windowControl` 的记录，包含 `status=` 与 `trigger=launch`。
 - 每条记录包含 `latencyMs=`，且窗口控制探针 `latencyMs < 1000`。
+- 记录字段与 `contracts/permission-report.schema.json` 的 `capabilities[].probes[]` 命名一致：`id`、`target`、`status`、`latencyMs`（`axError` 可空）。
 - 崩溃或 `fatal error` 出现即判失败。

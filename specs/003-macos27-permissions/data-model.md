@@ -59,12 +59,17 @@ struct CapabilityState {
 
 ### 窗口控制汇总规则（由探针推导）
 
-| frontmost | finder | api | 汇总结果 |
+| frontmost | finder | api（仅参考） | 汇总结果 |
 |---|---|---|---|
-| success | success/任意 | 任意 | `granted` |
-| success | apiDisabled | 任意 | `granted`（部分目标受控，记录 `partialTargets`） |
+| success | success | 任意 | `granted` |
+| success | apiDisabled | 任意 | `granted`（`partialTargets` 标注 finder 不可控） |
+| apiDisabled | success | 任意 | `granted`（`partialTargets` 标注 frontmost 不可控） |
+| success | unknown | 任意 | `granted`（另一目标无法判定，不据此降级） |
+| apiDisabled | unknown | 任意 | `unknown` + `lastError`（无法区分全局拒绝与目标侧问题） |
+| unknown | unknown | 任意 | `unknown` + `lastError` |
 | apiDisabled | apiDisabled | 任意 | `denied` |
-| 任意 | 任意，全部 cannotComplete/超时 | 任意 | `unknown` |
+
+判定式的等价表述：**任一探针 `success` → `granted`；没有 `success` 且所有已完成的探针均为 `apiDisabled` → `denied`；其余组合 → `unknown`。** `api` 探针（`AXIsProcessTrusted()`）只进诊断报告，不改变汇总结果——espanso 的案例说明它可能与真实可用性相反。`partialTargets` 只写进诊断 `notes`，不改变 `granted` 判定（FR-014：不把部分受控报成未授权）。
 
 ## PermissionSnapshot
 
@@ -73,19 +78,39 @@ struct PermissionSnapshot {
     let generatedAt: Date
     let capabilities: [CapabilityState]
     let overall: PermissionStatus   // 取最严格的窗口控制状态；inputMonitoring 单独展示
-    let system: SystemInfo          // productVersion/build/arch
-    let app: AppInfo                // marketingVersion/build/bundleID/teamID/path/isTranslocated/isLoginItem
+    let system: SystemInfo
+    let app: AppInfo
+}
+
+struct SystemInfo {                 // 与 contracts/permission-report.schema.json 的 system 段一一对应
+    let productVersion: String      // ProcessInfo.operatingSystemVersion 转 "27.3"
+    let build: String               // 系统 Build（如 26C5047e）
+    let arch: String                // "arm64" | "x86_64"（uname -m 或 #if arch 之外的运行时判定）
+}
+
+struct AppInfo {                    // 与 schema 的 app 段一一对应
+    let marketingVersion: String    // CFBundleShortVersionString，缺省 "0"
+    let build: String               // CFBundleVersion，缺省 "0"
+    let bundleID: String            // Bundle.main.bundleIdentifier ?? "unknown"
+    let teamID: String              // 从签名信息读取失败时填 "unknown"（用 SecCode 或省略为 "unknown"）
+    let path: String                // Bundle.main.bundlePath
+    let isTranslocated: Bool        // path 含 "/AppTranslocation/"
+    let isLoginItem: Bool           // 是否作为登录项启动（SMAppService/已注册登录项判定失败时 false）
 }
 ```
+
+`SystemInfo` 与 `AppInfo` 都必须显式定义：`PermissionSnapshot` 与诊断报告共用这两个类型，字段名与 `contracts/permission-report.schema.json` 的 `system.*` / `app.*` 完全一致，禁止在报告生成处另造同义字段名。
 
 ## PermissionCenter（`@MainActor final class PermissionCenter: ObservableObject`）
 
 职责与约定：
 
 - `static let shared`；`func start()` / `func stop()`；`@Published private(set) var snapshot: PermissionSnapshot`。
+- `@Published private(set) var hasCompletedFirstCheck: Bool`：首轮探测（含全部能力）完成前为 false。所有「未授权才展示引导」的 UI 判定必须先等它为 true，否则已授权用户每次启动都会闪一次未授权引导。
+- `var onStatusChange: ((PermissionCapability, PermissionStatus, PermissionStatus) -> Void)?`：状态迁移回调（主线程调用），供输入监听监视器按「装/卸」响应（见 R13）。
 - `func recheck(trigger: String)`：合并并发请求（同一 trigger 1 秒内去重）；探针在 `DispatchQueue(label: "...permissions.probe", qos: .utility)` 执行，结果 `Task { @MainActor in }` 回写。
 - `func reportAXFailure(_ error: AXError)`：仅当 `error == .apiDisabled` 时触发 `recheck(trigger: "ax-failure")`。
-- 调度：启动 `+0s` 一次；`granted` 后 30s 轮询；非 `granted` 时 5s × 最多 24 次；由 `NSWorkspace.didActivateApplication`、`didWake`、`NSApplication.didBecomeActive` 触发额外复核。
+- 调度：启动 `+0s` 一次；`granted` 后 30s 轮询；非 `granted` 时 5s × 最多 24 次；由 `NSWorkspace.didActivateApplication`、`NSWorkspace.didWake`（均注册在 `NSWorkspace.shared.notificationCenter`）、设置窗口 `NSWindow.didBecomeKey`（注册在 `NotificationCenter.default`）、菜单栏点击、`reportAXFailure` 触发额外复核。`NSApplication.didBecomeActive` 在 `.prohibited` 激活策略下可能永不触发，只作可选补充（`MacsyZones/App.swift` 中 `NSApp.setActivationPolicy(.prohibited)`）。
 - 生命周期：所有 `Timer`/`DispatchWorkItem` 在 `stop()` 与 `applicationWillTerminate` 中取消（与 002 的 `cancelPendingScans` 同款纪律）。
 
 状态机（单个能力）：
@@ -103,7 +128,7 @@ struct PermissionSnapshot {
             └──────────────▶ granted（立即，无宽限）
 ```
 
-宽限规则：仅在「上一次为 `granted`、本次探针为 `denied`、且距进程启动 < 60s」时进入可疑态；其余 `granted → denied` 立即生效。
+宽限规则：**仅登录期生效**——「上一次为 `granted`、本次探针为 `denied`、且距进程启动 < 60 秒」时进入可疑态（对外仍报 `granted`，`isSuspect == true`）；60 秒内恢复则当作抖动，超时仍 `denied` 才切换并提示。**距进程启动 ≥ 60 秒的 `granted → denied` 立即生效**，因为运行中撤销是用户的确定性操作（`quickstart.md` 场景 C 按此验收）。
 
 ## GuidanceTarget（`PermissionGuidance.swift`）
 
@@ -149,4 +174,4 @@ struct PermissionDiagnosticReport: Codable {
 
 - 不修改 `AppSettingsData`（无新字段）；不写 `AppSettings.json`/`UserLayouts.json`。
 - 不复用 `macsyReady`（`MacsyZones/App.swift:23`）作为权限状态载体：`macsyReady.isReady` 表示「窗口观察就绪」，与权限是正交概念。
-- `hasAccessibilityPermission`（`MacsyZones/App.swift:38`）在实现后删除，其读取点（`MacsyZones/App.swift:555`、`:627`、`:745`）全部改为读 `PermissionCenter.shared.snapshot`。
+- `hasAccessibilityPermission`（`MacsyZones/App.swift:38`）在实现后删除。它的引用点是：写入 `MacsyZones/App.swift:742`（`AXIsProcessTrustedWithOptions` 结果）、读取 `MacsyZones/App.swift:627`（onboarding 条件）与 `:746`（是否展示引导）、调用 `:554`/`:555`（`:555` 是对 `requestAccessibilityPermissions()` 的间接调用，函数体在 `:745`）、定义 `:740`/`:745`。删除后这些位置全部改为读 `PermissionCenter.shared.snapshot`，`:554`/`:555` 两处改为 `PermissionCenter.shared.start()`。

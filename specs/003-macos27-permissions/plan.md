@@ -1,38 +1,38 @@
-# Implementation Plan: macOS 27 权限模型适配
+# 实施方案：macOS 27 权限模型适配
 
-**Branch**: `003-macos27-permissions` | **Date**: 2026-11-21 | **Spec**: [spec.md](</Users/jiezhengj/Documents/Project/MacsyZones/specs/003-macos27-permissions/spec.md>)
+**分支**：`003-macos27-permissions` | **日期**：2026-11-21 | **规格**： [spec.md](</Users/jiezhengj/Documents/Project/MacsyZones/specs/003-macos27-permissions/spec.md>)
 
-**Input**: Feature specification from `/specs/003-macos27-permissions/spec.md`
+**输入**：[spec.md](spec.md)
 
-## Summary
+## 概要
 
 macOS 27.3 把「设备控制与数据访问」拆成 **System & App Protection Override** 与 **无障碍** 两个面板，禁用程序主动弹授权框（`AXIsProcessTrustedWithOptions` 底层返回 `preflight_unknown`），并按目标 app 记录 per-target 授权。本项目当前是「启动时检测一次 + 模态框挡住主界面 + 指向旧面板」，在这套模型下会让用户永久卡在「没有权限」。
 
 本 feature 用一套独立的权限中心替换单一布尔：分能力（窗口控制 / 输入监听 / 事件投递）检测三态（已授权 / 未授权 / 未知），按真实 AX 探针而不是单一 API 判定，多时机复核并带失败宽限，引导指向 macOS 27 正确面板并支持一键打开，Release 输出结构化日志，设置里提供诊断面板与可粘贴报告，输入监听缺失时按能力降级。
 
-## Technical Context
+## 技术上下文
 
-**Language/Version**: Swift 5（`SWIFT_VERSION = 5.0`，与现有工程一致）；AppKit + SwiftUI；无第三方依赖。
+**语言/版本**： Swift 5（`SWIFT_VERSION = 5.0`，与现有工程一致）；AppKit + SwiftUI；无第三方依赖。
 
-**Primary Dependencies**: ApplicationServices（`AXUIElement`、`AXIsProcessTrusted`）、CoreGraphics（`CGPreflightListenEventAccess`）、AppKit（`NSEvent` 全局监听、`NSWorkspace` 通知）、os（`Logger` 统一日志）。iOS/macOS SDK：`MacOSX27.2.sdk`（本机无 27.3 SDK，不得依赖 27.3 新增符号）。
+**主要依赖**： ApplicationServices（`AXUIElement`、`AXIsProcessTrusted`）、CoreGraphics（`CGPreflightListenEventAccess`）、AppKit（`NSEvent` 全局监听、`NSWorkspace` 通知）、os（`Logger` 统一日志）。iOS/macOS SDK：`MacOSX27.2.sdk`（本机无 27.3 SDK，不得依赖 27.3 新增符号）。
 
-**Storage**: 不新增持久化。权限状态为运行时内存状态；诊断报告只写剪贴板，不落盘。不读写 TCC 数据库，不写 `AppSettings.json` 新字段（如需「不再提示」类偏好，按 `AGENTS.md`/章程五用 optional 字段 + `??` 回退，本 feature 不引入）。
+**存储**： 不新增持久化。权限状态为运行时内存状态；诊断报告只写剪贴板，不落盘。不读写 TCC 数据库，不写 `AppSettings.json` 新字段（如需「不再提示」类偏好，按 `AGENTS.md`/章程五用 optional 字段 + `??` 回退，本 feature 不引入）。
 
-**Testing**: 无 XCTest target（沿用 002 的三层验证）：① `bash scripts/build-debug.sh`（正式签名 Debug 构建，BUILD SUCCEEDED + `verify-signing.sh` PASS）；② 纯值逻辑用 `scripts/check_permission_model.sh` + `scripts/tests/*.swift` 桩断言（不引入 AppKit）；③ 运行期用 `scripts/permission-smoke.sh` 启动 App、按 `log show` 断言权限日志与无崩溃。需要真实 TCC 授权与 GUI 的行为（首次授权、撤销、升级路径）走 `quickstart.md` 的手动矩阵。
+**测试**： 无 XCTest target（沿用 002 的三层验证）：① `bash scripts/build-debug.sh`（正式签名 Debug 构建，BUILD SUCCEEDED + `verify-signing.sh` PASS）；② 纯值逻辑用 `scripts/check_permission_model.sh` + `scripts/tests/*.swift` 桩断言（不引入 AppKit）；③ 运行期用 `scripts/permission-smoke.sh` 启动 App、按 `log show` 断言权限日志与无崩溃；该脚本依赖 `scripts/build-permission-artifact.sh` 产出的、可长期启动的 `~/Applications/MacsyZones-dbg.app`（`scripts/build-debug.sh` 的 `trap cleanup EXIT` 会删掉派生数据，不能用于需要反复启动的验证，见研究 R14）。需要真实 TCC 授权与 GUI 的行为（首次授权、撤销、升级路径）走 `quickstart.md` 的手动矩阵。
 
-**Target Platform**: macOS 27.0+（部署目标 `MACOSX27.0`），本机 27.3（Build `26C5047e`，Apple Silicon）；需同时兼容 27.0–27.2 的旧面板形态。
+**目标平台**： macOS 27.0+（部署目标 `MACOSX27.0`），本机 27.3（Build `26C5047e`，Apple Silicon）；需同时兼容 27.0–27.2 的旧面板形态。
 
-**Project Type**: 单 target 的 macOS 桌面 App（`MacsyZones.xcodeproj`，`PBXFileSystemSynchronizedRootGroup` 自动收录 `MacsyZones/` 下的新 Swift 文件，无需改 pbxproj）。
+**项目类型**： 单 target 的 macOS 桌面 App（`MacsyZones.xcodeproj`，`PBXFileSystemSynchronizedRootGroup` 自动收录 `MacsyZones/` 下的新 Swift 文件，无需改 pbxproj）。
 
-**Performance Goals**: 权限探针不得造成主线程 > 50ms 阻塞（探针在后台队列执行，结果回主线程）；空闲时 CPU ≤ 2%；空闲检测频率上限 1 次/30 秒。
+**性能目标**： 权限探针不得造成主线程 > 50ms 阻塞（探针在后台队列执行，结果回主线程）；空闲时 CPU ≤ 2%；空闲检测频率上限 1 次/30 秒。
 
-**Constraints**: 不得申请需要苹果审批的 entitlement；不得改变 Bundle ID / Team ID / 签名方式 / 部署目标；禁止 `#available` 降级分支（用 `ProcessInfo.operatingSystemVersion` 判定 27.0–27.2 与 27.3+ 的文案差异）；新增 UI 文案中文、风格与现有设置一致；权限引导不得使用阻塞式模态框。
+**约束**： 首轮探测完成前不得对已授权用户展示「未授权」引导（`PermissionCenter.hasCompletedFirstCheck` 门控）；不得申请需要苹果审批的 entitlement；不得改变 Bundle ID / Team ID / 签名方式 / 部署目标；禁止 `#available` 降级分支（用 `ProcessInfo.operatingSystemVersion` 判定 27.0–27.2 与 27.3+ 的文案差异）；新增 UI 文案中文、风格与现有设置一致；权限引导不得使用阻塞式模态框。
 
-**Scale/Scope**: 新增 3 个源文件（`PermissionCenter.swift`、`PermissionGuidance.swift`、`PermissionDiagnosticsView.swift`），改造 `App.swift`（约 6 处接线）、`Info.swift`（引导视图）、`SettingsView.swift`（诊断 section）；新增 2 个校验脚本 + 1 个 schema。共约 700–900 行新增代码。
+**规模**： 新增 3 个源文件（`PermissionCenter.swift`、`PermissionGuidance.swift`、`PermissionDiagnosticsView.swift`），改造 `App.swift`（约 6 处接线）、`Info.swift`（引导视图）、`SettingsView.swift`（诊断 section）；新增 2 个校验脚本 + 1 个 schema。共约 700–900 行新增代码。
 
-## Constitution Check
+## 章程检查
 
-*GATE: 通过后方可进入 Phase 0；Phase 1 设计后复检。*
+*门禁：通过后方可进入设计与任务拆解；设计变更后复检。*
 
 | 原则 | 结论 | 依据 |
 |------|------|------|
@@ -48,9 +48,9 @@ macOS 27.3 把「设备控制与数据访问」拆成 **System & App Protection 
 
 无章程违规项，Complexity Tracking 只记录现有工程约束（无 XCTest target）。
 
-## Project Structure
+## 项目结构
 
-### Documentation (this feature)
+### 文档（本 feature）
 
 ```text
 specs/003-macos27-permissions/
@@ -61,12 +61,10 @@ specs/003-macos27-permissions/
 │   ├── permission-report.schema.json   # 诊断报告 JSON 结构（复制/粘贴契约）
 │   └── guidance-targets.md             # 各 27.x 形态的面板路径与深链
 ├── quickstart.md         # Phase 1：构建、脚本、手动验证矩阵
-├── checklists/
-│   └── requirements.md   # 规格质量检查表
 └── tasks.md              # Phase 2（/speckit-tasks 生成，非本命令）
 ```
 
-### Source Code (repository root)
+### 源码（仓库根目录）
 
 ```text
 MacsyZones/
@@ -75,24 +73,26 @@ MacsyZones/
 ├── PermissionDiagnosticsView.swift # 新增：设置内诊断 section + 报告生成与复制
 ├── App.swift                       # 改造：接入 PermissionCenter；替换启动时单次检测；onboarding 条件；-25211 上报；唤醒/激活复核
 ├── Info.swift                      # 改造：权限引导视图（非模态、正确面板、一键打开、旧截图移除）
-├── SettingsView.swift              # 改造：插入「权限」诊断 section
+├── SettingsView.swift              # 改造：顶部非模态权限横幅 + 诊断 section（横幅必须在 App.swift 之外新建视图）
 └── Utils.swift                     # 改造：debugLog 与 os.Logger 并存（Release 也能出诊断日志）
 
 scripts/
-├── check_permission_model.sh       # 新增：值类型/状态机静态断言（grep + swift 桩）
-└── permission-smoke.sh             # 新增：启动构建产物、断言权限日志、确认无崩溃
+├── build-permission-artifact.sh    # 新增：构建并复制可长期启动的 ~/Applications/MacsyZones-dbg.app（R14）
+├── check_permission_model.sh       # 新增：抽取真实源码片段做值逻辑断言 + 不变量 grep（R15）
+└── permission-smoke.sh             # 新增：启动上面那个产物、断言权限日志、确认无崩溃
 
 scripts/tests/
-├── permission-stubs.swift          # 新增：PermissionStatus/PermissionProbe 纯值逻辑桩
-└── permission-assertions.swift     # 新增：断言脚本（被 check_permission_model.sh 调用）
+├── permission-stubs.swift          # 新增：PermissionStatus/PermissionProbe 等纯值类型桩（被抽出的真实代码引用）
+└── permission-assertions.swift     # 新增：断言脚本（被 check_permission_model.sh 调用，断言真实源码抽出的函数）
 ```
 
 **Structure Decision**: 沿用现有单 target 布局（`MacsyZones/` 为同步根组，新增文件自动入编译）；权限逻辑集中到 `PermissionCenter.swift`，避免继续散落在 `App.swift`；引导文案与深链单独成文件，便于 27.0–27.2 与 27.3+ 两套形态维护与测试；诊断 UI 与设置页复用现有 SwiftUI 组件风格。
 
-## Complexity Tracking
+## 复杂度跟踪
 
 | 项目 | 说明 | 取舍 |
 |------|------|------|
 | 无 XCTest target | 工程没有测试 target，新增会改 pbxproj 与签名流程 | 沿用 002 的三层验证（构建 + 桩脚本 + 运行期日志断言），不新增 target |
 | 无 27.3 SDK | 本机 Xcode 27.2 只有 `MacOSX27.2.sdk`，无法编译 27.3 新符号 | 只用 27.0 可达 API + 运行时版本判定；面板差异靠 `ProcessInfo` 与深链，不依赖新常量 |
 | 双形态面板文案 | 27.0–27.2 旧面板 vs 27.3+ 拆分面板 | 用 `operatingSystemVersion` 分支文案（非 `#available`），两套文案集中在 `PermissionGuidance.swift` |
+| 构建产物会被清理 | `scripts/build-debug.sh` 用 `trap cleanup EXIT` 删除派生数据，跑完即无产物可启动 | 新增 `scripts/build-permission-artifact.sh`，固定 `-derivedDataPath /tmp/m003-debug` 并复制到 `~/Applications/MacsyZones-dbg.app`，供冒烟与手动矩阵反复启动 |
