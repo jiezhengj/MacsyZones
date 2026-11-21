@@ -148,6 +148,8 @@ bash scripts/permission-smoke.sh
 
 - F2 方向（`windowControl=denied`，与 F2 预期的关闭分支一致）自动化验证：启动正式版副本后进程存活、无 fatal/crash；首轮 `trigger=launch` 探针全部 `denied` 后，状态迁移日志出现且仅出现一次 `probe=degrade` 记录（「降级提示：拖动吸附与布局自动保存已暂停（只读模式），Carbon 快捷键不受影响」），证明降级路径与一次性提示生效（`/tmp/m003-scenarioF-f1.log`）。
 - 鼠标类监视器未安装（`windowControl == .denied` 不装）、悬停高亮路径按 `windowControl` 状态门控（`Layout.swift` `handleMouseMoved`），编译与日志证据通过；拖动/高亮的可视行为留待人工。
+- 深链落点（2026-11-22 00:13 实测，`windowControl=denied`）：`open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"` 在 27.3（26C5047e）上**直接打开系统设置并定位到 `System & App Protection Override` 面板**（截图确认：标题、说明「Apps that override system and app protections can fully control your Mac and apps…」、空列表提示「Apps that can override system and app protections will appear here.」、`+`/`−` 按钮）——即 `research.md` R3 的 27.3 深链映射成立，引导步骤 2 的文案与实际面板一致。
+- 该面板初始**列表为空**、需要用户点 `+` 手动把 `/Applications/MacsyZones.app` 加进来（官方 27.3 的「单一授权方式：从列表中选择发起请求的 app」），因此引导文案不应暗示 app 会自动出现在列表里；「无障碍」面板只收系统认定的辅助技术 app，MacsyZones 不在其中属正常（与引导步骤 4 的措辞一致）。
 - 留待人工：F1 完整分支（需 `windowControl=granted` 才能验证「缺输入监控时拖动照常」）；F2 的「重新打开后不重启恢复拖动」（需真授权一次）；场景 B 授权后的恢复时间实测（`research.md` R13 补装路径已由代码与断言覆盖，实机时间留待人工）。
 
 ### 场景 G：已授权用户多次登录不误报（SC-003）
@@ -220,7 +222,7 @@ top -pid "$PID" -l 5 -stats pid,cpu | tail -6
 | C 运行期撤销 | 机制已实现，未实机验证 | 30s 轮询 + 即时复核代码路径与断言覆盖 |
 | D 升级保持 | 未实机验证 | 本机已是 27.3；双形态真实函数断言 50 assertions |
 | E per-target | 机制已实现，未实机验证 | partialTargets 判定 + 诊断面板标注代码就绪；需真授权复现 |
-| F 能力降级矩阵 | F2 方向自动化完成 | degrade 提示恰一次、鼠标类不装、Carbon 保留；F1/恢复留待人工 |
+| F 能力降级矩阵 | F2 方向 + 深链落点已完成 | degrade 提示恰一次、鼠标类不装、Carbon 保留；`Privacy_Accessibility` 在 27.3 落到 `System & App Protection Override`（截图确认，初始空列表需 `+` 添加）；F1/恢复留待人工 |
 | G 多次登录不误报 | 未实机验证 | 需已授权 + 真登录；替代：启动路径等价验证 + 宽限边界断言 |
 | H /tmp translocation | 自动化部分完成 | /private/tmp 运行存活、无 quarantine、isTranslocated 判定真实；面板目视留待人工 |
 | I 登录项 | 未实机验证 | SMAppService 实时判定 + 首轮门控 |
