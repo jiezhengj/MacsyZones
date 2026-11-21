@@ -231,6 +231,11 @@ final class PermissionCenter: ObservableObject {
         recheck(trigger: "launch")
     }
 
+    /// 便捷读取：某能力的当前状态（快照未生成时返回 nil）。
+    func status(of capability: PermissionCapability) -> PermissionStatus? {
+        snapshot?.capabilities.first { $0.capability == capability }?.status
+    }
+
     /// 停止：取消全部计时器/工作项并移除观察者（applicationWillTerminate 调用）。
     func stop() {
         cancelTimers()

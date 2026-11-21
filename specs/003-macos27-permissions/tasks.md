@@ -45,13 +45,13 @@
 
 **独立验收**：`quickstart.md` 场景 B（授权后 10 秒内、主动触发 2 秒内变 `granted`）与场景 C（运行期撤销 10 秒内降级，无 60 秒静默）。
 
-- [ ] T021 [US2] 在 `MacsyZones/App.swift` 注册复核触发，注册中心必须正确：`NSWorkspace.didActivateApplicationNotification`、`NSWorkspace.didWakeNotification` 用 `NSWorkspace.shared.notificationCenter`；`NSWindow.didBecomeKeyNotification` 用 `NotificationCenter.default`；菜单栏点击在 `toggleSettings` 回调内触发；`NSApplication.didBecomeActiveNotification` 只作可选补充（`.prohibited` 下可能不触发，`MacsyZones/App.swift:550`），不依赖；所有触发回调 `Task { @MainActor in PermissionCenter.shared.recheck(trigger:) }`（FR-003）
-- [ ] T022 [US2] 让 AX 失败可上报：`MacsyZones/App.swift:485` 的 `checkStandardWindow(_:)` 在 `roleStatus`/`subroleStatus` 失败时携带原始 `AXError`（或新增 `checkStandardWindowWithError` 供 `observeWindow` 使用），失败分支调用 `PermissionCenter.shared.reportAXFailure(error)`；`MacsyZones/Macsy.swift` 的 6 处 `AXUIElementSetAttributeValue`（`:857`/`:875`/`:885`/`:907`/`:912`/`:1022`）失败时同样上报（FR-003）
-- [ ] T023 [US2] 在 `MacsyZones/App.swift` 的 `createTrayIcon()`（`:702`）按状态刷新菜单栏标记：不得破坏 `image.isTemplate` 的深浅色着色（用 `attributedTitle` 或叠加 template 图），并因 `createTrayIcon()` 早于首轮探测完成，在 `hasCompletedFirstCheck` 变 true 后异步刷新一次（FR-004）
-- [ ] T024 [US2] 在 `MacsyZones/SettingsView.swift` **新建**权限横幅视图（`private struct PermissionStatusBanner`），插入到 `body` 的 `ScrollView` 内第一个 section（`LayoutSettingsSection`，`:77`）之前；按 `snapshot` 显示「未授权/未知/缺少输入监听」与「打开系统设置」「重新检测」按钮（FR-004/FR-010）
-- [ ] T025 [US2] 在 `MacsyZones/App.swift:627` 把 onboarding 条件由 `hasAccessibilityPermission` 改为 `PermissionCenter.shared.snapshot.overall == .granted`（依赖 T017 已删除旧符号），并保证未授权时引导优先于 onboarding（FR-009）
-- [ ] T026 [US2] 构建并执行 `quickstart.md` 场景 B、C：记录「授权 → granted」实际耗时（要求 ≤ 10 秒，主动触发 ≤ 2 秒）与「运行期撤销 → 降级」实际耗时（要求 ≤ 10 秒，不得出现 60 秒静默）
-- [ ] T027 [US2] 把 T026 的实测数值与新发现写入 `specs/003-macos27-permissions/quickstart.md` 的实测记录段落
+- [x] T021 [US2] 在 `MacsyZones/App.swift` 注册复核触发，注册中心必须正确：`NSWorkspace.didActivateApplicationNotification`、`NSWorkspace.didWakeNotification` 用 `NSWorkspace.shared.notificationCenter`；`NSWindow.didBecomeKeyNotification` 用 `NotificationCenter.default`；菜单栏点击在 `toggleSettings` 回调内触发；`NSApplication.didBecomeActiveNotification` 只作可选补充（`.prohibited` 下可能不触发，`MacsyZones/App.swift:550`），不依赖；所有触发回调 `Task { @MainActor in PermissionCenter.shared.recheck(trigger:) }`（FR-003）
+- [x] T022 [US2] 让 AX 失败可上报：`MacsyZones/App.swift:485` 的 `checkStandardWindow(_:)` 在 `roleStatus`/`subroleStatus` 失败时携带原始 `AXError`（或新增 `checkStandardWindowWithError` 供 `observeWindow` 使用），失败分支调用 `PermissionCenter.shared.reportAXFailure(error)`；`MacsyZones/Macsy.swift` 的 6 处 `AXUIElementSetAttributeValue`（`:857`/`:875`/`:885`/`:907`/`:912`/`:1022`）失败时同样上报（FR-003）
+- [x] T023 [US2] 在 `MacsyZones/App.swift` 的 `createTrayIcon()`（`:702`）按状态刷新菜单栏标记：不得破坏 `image.isTemplate` 的深浅色着色（用 `attributedTitle` 或叠加 template 图），并因 `createTrayIcon()` 早于首轮探测完成，在 `hasCompletedFirstCheck` 变 true 后异步刷新一次（FR-004）
+- [x] T024 [US2] 在 `MacsyZones/SettingsView.swift` **新建**权限横幅视图（`private struct PermissionStatusBanner`），插入到 `body` 的 `ScrollView` 内第一个 section（`LayoutSettingsSection`，`:77`）之前；按 `snapshot` 显示「未授权/未知/缺少输入监听」与「打开系统设置」「重新检测」按钮（FR-004/FR-010）
+- [x] T025 [US2] 在 `MacsyZones/App.swift:627` 把 onboarding 条件由 `hasAccessibilityPermission` 改为 `PermissionCenter.shared.snapshot.overall == .granted`（依赖 T017 已删除旧符号），并保证未授权时引导优先于 onboarding（FR-009）
+- [x] T026 [US2] 构建并执行 `quickstart.md` 场景 B、C：记录「授权 → granted」实际耗时（要求 ≤ 10 秒，主动触发 ≤ 2 秒）与「运行期撤销 → 降级」实际耗时（要求 ≤ 10 秒，不得出现 60 秒静默）
+- [x] T027 [US2] 把 T026 的实测数值与新发现写入 `specs/003-macos27-permissions/quickstart.md` 的实测记录段落
 
 # 阶段 5：US3 诊断面板与 Release 可观测性（P2）
 

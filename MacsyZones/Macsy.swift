@@ -855,10 +855,11 @@ func resizeAndMoveWindow(element: AXUIElement, newPosition: CGPoint, newSize: CG
         var sizeValue = CGSize(width: newSize.width, height: newSize.height - 10)
         if let sizeAXValue = AXValueCreate(.cgSize, &sizeValue) {
             let result = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, sizeAXValue)
-            
+
             if result != .success {
                 debugLog("Failed to set window size, error code: \(result.rawValue)")
                 debugLog(getWindowDetails(element: element))
+                reportAXWriteFailure(result)
             }
         }
     }
@@ -873,20 +874,22 @@ func resizeAndMoveWindow(element: AXUIElement, newPosition: CGPoint, newSize: CG
             var positionValue = newPosition
             if let positionAXValue = AXValueCreate(.cgPoint, &positionValue) {
                 let result = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, positionAXValue)
-                
+
                 if result != .success {
                     debugLog("Failed to set window position, error code: \(result.rawValue)")
                     debugLog(getWindowDetails(element: element))
+                    reportAXWriteFailure(result)
                 }
             }
-            
+
             sizeValue = newSize
             if let sizeAXValue = AXValueCreate(.cgSize, &sizeValue) {
                 let result = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, sizeAXValue)
-                
+
                 if result != .success {
                     debugLog("Failed to set window size, error code: \(result.rawValue)")
                     debugLog(getWindowDetails(element: element))
+                    reportAXWriteFailure(result)
                 }
             }
         }
@@ -905,11 +908,17 @@ func resizeAndMoveWindow(element: AXUIElement, newPosition: CGPoint, newSize: CG
     var positionValue = newPosition
     if let positionAXValue = AXValueCreate(.cgPoint, &positionValue) {
         lastPositionResult = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, positionAXValue)
+        if lastPositionResult != .success {
+            reportAXWriteFailure(lastPositionResult)
+        }
     }
-    
+
     var sizeValue = newSize
     if let sizeAXValue = AXValueCreate(.cgSize, &sizeValue) {
         lastSizeResult = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, sizeAXValue)
+        if lastSizeResult != .success {
+            reportAXWriteFailure(lastSizeResult)
+        }
     }
 
     if (lastPositionResult != .success || lastSizeResult != .success) && useFallback {
@@ -1020,9 +1029,10 @@ func resizeWindow(element: AXUIElement, newSize: CGSize) {
     
     if let sizeAXValue = sizeAXValue {
         let result = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, sizeAXValue)
-        
+
         if result != .success {
             debugLog("Failed to set window size, error code: \(result.rawValue) Retrying with fresh window element...")
+            reportAXWriteFailure(result)
 
             if let freshElement = getFocusedWindowAXUIElement() {
                 debugLog("Retrieved fresh window element by ID, retrying resize operation...")
@@ -1460,4 +1470,13 @@ func presentingShortcut(_ shortcut: String) -> String {
         .replacingOccurrences(of: "Shift", with: "⇧")
     
     return formattedShortcut
+}
+
+// T022：AX 写操作失败的统一上报入口。仅 kAXErrorAPIDisabled（-25211）会在
+// 权限中心触发即时复核（reportAXFailure 内部过滤），其余错误只进探针诊断。
+// PermissionCenter 是 @MainActor，从非隔离上下文经 Task 跳回主线程。
+func reportAXWriteFailure(_ error: AXError) {
+    Task { @MainActor in
+        PermissionCenter.shared.reportAXFailure(error)
+    }
 }

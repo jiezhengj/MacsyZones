@@ -41,6 +41,8 @@ let cycleBackwardHotkey = GlobalHotkey() {
 var permissionGuidanceCancellable: AnyCancellable?
 var hasShownPermissionGuidance = false
 var hasShownPermissionOnboarding = false
+// T023：菜单栏状态标记的快照订阅（每次快照更新时刷新标记）。
+var permissionTrayCancellable: AnyCancellable?
 
 var statusItem: NSStatusItem!
 var accessibilityDialog: AccessibilityDialog?
@@ -491,12 +493,19 @@ final class WindowObserverManager {
     private func checkStandardWindow(_ element: AXUIElement) -> StandardWindowCheck {
         var roleRef: CFTypeRef?
         let roleStatus = AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef)
-        guard roleStatus == .success else { return .indeterminate }
+        guard roleStatus == .success else {
+            // T022：读取失败携带原始 AXError 上报权限中心（仅 kAXErrorAPIDisabled 会触发即时复核）。
+            PermissionCenter.shared.reportAXFailure(roleStatus)
+            return .indeterminate
+        }
         guard (roleRef as? String) == kAXWindowRole else { return .notStandard }
 
         var subroleRef: CFTypeRef?
         let subroleStatus = AXUIElementCopyAttributeValue(element, kAXSubroleAttribute as CFString, &subroleRef)
-        guard subroleStatus == .success else { return .indeterminate }
+        guard subroleStatus == .success else {
+            PermissionCenter.shared.reportAXFailure(subroleStatus)
+            return .indeterminate
+        }
         guard (subroleRef as? String) == kAXStandardWindowSubrole else { return .notStandard }
 
         return .standard
@@ -580,6 +589,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
                        !hasShownPermissionOnboarding {
                         hasShownPermissionOnboarding = true
                         showOnboarding()
+                    }
+                }
+
+            // T023：首轮探测早于 createTrayIcon 的完成时机不确定，这里订阅快照，
+            // 每次快照更新都刷新菜单栏标记（首轮完成前快照为 nil，标记保持空白）。
+            permissionTrayCancellable = PermissionCenter.shared.$snapshot
+                .receive(on: DispatchQueue.main)
+                .sink { _ in
+                    Task { @MainActor in
+                        refreshTrayPermissionMark()
                     }
                 }
         }
@@ -758,6 +777,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
     }
 
     @objc func toggleSettings(sender: AnyObject?) {
+        // T021：菜单栏图标点击是复核触发源之一（R4）；didActivate/didWake/didBecomeKey
+        // 已由 PermissionCenter 内部注册，didBecomeActive 在 .prohibited 下可能永不触发，
+        // 故按任务要求只作可选补充、不依赖。
+        Task { @MainActor in
+            PermissionCenter.shared.recheck(trigger: "manual")
+        }
         SettingsWindowManager.shared.toggleWindow()
     }
 
@@ -1053,4 +1078,28 @@ func restartApp() {
     task.launch()
     
     NSApp.terminate(nil)
+}
+
+// T023：菜单栏状态标记。在模板图标（image.isTemplate 保持不动、深浅色着色不受影响）
+// 之后以 attributedTitle 叠加彩色小圆点：denied → 红点，unknown → 黄点，granted → 无标记。
+// 快照为 nil（首轮探测未完成）时同样保持空白，不提前报警。
+@MainActor
+func refreshTrayPermissionMark() {
+    guard let button = statusItem?.button else { return }
+    switch PermissionCenter.shared.snapshot?.overall {
+    case .denied:
+        let mark = NSMutableAttributedString(string: " ●")
+        mark.addAttribute(.foregroundColor,
+                          value: NSColor.systemRed,
+                          range: NSRange(location: 0, length: mark.length))
+        button.attributedTitle = mark
+    case .unknown:
+        let mark = NSMutableAttributedString(string: " ●")
+        mark.addAttribute(.foregroundColor,
+                          value: NSColor.systemYellow,
+                          range: NSRange(location: 0, length: mark.length))
+        button.attributedTitle = mark
+    default:
+        button.attributedTitle = NSAttributedString()
+    }
 }

@@ -73,6 +73,9 @@ struct SettingsView: View {
             // Settings content
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
+                    // T024：权限横幅置于最顶部（首个 section 之前）。
+                    PermissionStatusBanner()
+
                     // Layout settings (per screen)
                     LayoutSettingsSection(state: state)
 
@@ -964,5 +967,102 @@ struct AdvancedSettingsSection: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - T024：权限横幅（设置窗口顶部，按快照实时刷新）
+// 首轮探测完成前不显示任何权限提示（T018 口径）；unknown 显示「检测中」不报警（R9）。
+struct PermissionStatusBanner: View {
+    @ObservedObject var center: PermissionCenter = .shared
+
+    /// 系统次版本号（27.3 → 3），用于选择窗口控制权限的引导面板（禁用 #available 判定）。
+    private var osMinorVersion: Int {
+        ProcessInfo.processInfo.operatingSystemVersion.minorVersion
+    }
+
+    var body: some View {
+        if center.hasCompletedFirstCheck, let snapshot = center.snapshot {
+            VStack(alignment: .leading, spacing: 8) {
+                // 窗口控制状态（snapshot.overall）。
+                if snapshot.overall == .denied {
+                    bannerRow(
+                        color: .red,
+                        text: "MacsyZones 未获得窗口控制权限，拖动吸附功能已暂停。",
+                        systemImage: "exclamationmark.triangle.fill"
+                    ) {
+                        buttonsRow {
+                            Button("打开系统设置") {
+                                PermissionGuidance.open(
+                                    PermissionGuidance.primaryPane(forMinor: osMinorVersion)
+                                )
+                            }
+                            Button("重新检测") {
+                                PermissionCenter.shared.recheck(trigger: "manual")
+                            }
+                        }
+                    }
+                } else if snapshot.overall == .unknown {
+                    bannerRow(
+                        color: .yellow,
+                        text: "正在检测权限…（结果未知，功能暂按可用处理）",
+                        systemImage: "hourglass"
+                    ) {
+                        buttonsRow {
+                            Button("重新检测") {
+                                PermissionCenter.shared.recheck(trigger: "manual")
+                            }
+                        }
+                    }
+                }
+
+                // 输入监听状态单独展示（FR-010）。
+                if center.status(of: .inputMonitoring) == .denied {
+                    bannerRow(
+                        color: .orange,
+                        text: "缺少输入监听权限，仅修饰键/吸附键驱动的布局切换已暂停。",
+                        systemImage: "keyboard"
+                    ) {
+                        buttonsRow {
+                            Button("打开输入监控设置") {
+                                // 输入监控面板不在 guidance-targets.md 四键契约内，
+                                // 深链失败时回退到隐私与安全性根面板。
+                                let opened = NSWorkspace.shared.open(
+                                    URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!
+                                )
+                                if !opened {
+                                    PermissionGuidance.open(.privacyRoot)
+                                }
+                            }
+                            Button("重新检测") {
+                                PermissionCenter.shared.recheck(trigger: "manual")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func bannerRow(color: Color, text: String, systemImage: String, @ViewBuilder trailing: () -> some View) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: systemImage)
+                .foregroundColor(color)
+            Text(text)
+                .font(.callout)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            trailing()
+        }
+        .padding(10)
+        .background(color.opacity(0.12))
+        .cornerRadius(8)
+    }
+
+    @ViewBuilder
+    private func buttonsRow(@ViewBuilder content: () -> some View) -> some View {
+        HStack(spacing: 8) {
+            content()
+        }
+        .controlSize(.small)
     }
 }
