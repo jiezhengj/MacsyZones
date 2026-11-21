@@ -67,10 +67,10 @@ struct ShortcutInputView: View {
             stopListening()
             isFocused.wrappedValue = false
         }
-        .onChange(of: isListening) { newValue in
+        .onChange(of: isListening) { _, newValue in
             isFocused.wrappedValue = newValue
         }
-        .onChange(of: popoverState.shouldStopListening) { shouldStop in
+        .onChange(of: popoverState.shouldStopListening) { _, shouldStop in
             if shouldStop && isListening {
                 stopListening()
             }

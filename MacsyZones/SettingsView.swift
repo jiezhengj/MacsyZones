@@ -915,7 +915,7 @@ struct AdvancedSettingsSection: View {
             if #available(macOS 13.0, *) {
                 Toggle("登录时启动", isOn: $startAtLogin)
                     .toggleStyle(.checkbox)
-                    .onChange(of: startAtLogin) { _ in
+                    .onChange(of: startAtLogin) { _, _ in
                         toggleRunAtStartup()
                     }
                     .onAppear {
