@@ -34,12 +34,12 @@
 
 **独立验收**：`quickstart.md` 场景 A —— 撤销授权后启动，引导出现、文案含正确面板名、按钮跳到对应面板、app 不退出、主界面可用。
 
-- [ ] T015 [US1] 改造 `MacsyZones/Info.swift` 的 `AccessibilityPermissionView`：按 `GuidanceTarget` 输出步骤（27.3+ 先 System & App Protection Override、再看无障碍），按钮改为「打开系统设置」「重新检测」，删除旧截图引用（`Accessibility-Permission-Tutorial-1/2.imageset` 不再被引用；资源目录保留不删，删除属清理项不作要求），删除「重启后继续」主路径文案（FR-006/FR-007/FR-008/FR-009）
-- [ ] T016 [US1] 在 `MacsyZones/Info.swift` 把 `AccessibilityDialog` 改为非模态：去掉 `.screenSaver` 级别（`:197`、`:228`）、去掉 `onCancel` 闭包里的 `exit(0)`（`:221-224`，`exit(0)` 在 `:223`）、移除 `show()` 里的 `NSApplication.shared.activate(ignoringOtherApps: true)`（`:247-251`），保留 `orderFrontRegardless()` 但不抢焦点（FR-004/FR-010）
-- [ ] T017 [US1] 改造 `MacsyZones/App.swift`：删除 `hasAccessibilityPermission`（`:38`）、`checkAccessibilityPermission()`（`:740`）、`requestAccessibilityPermissions()`（`:745`）及其调用（`:554`/`:555`），改为 `PermissionCenter.shared.start()`；`showAccessibilityPermissionPopover()`（`:753`）改为非模态引导入口；用 `grep -rn "hasAccessibilityPermission" MacsyZones` 确认无残留
-- [ ] T018 [US1] 在 `MacsyZones/App.swift` 接线引导展示：**必须** `PermissionCenter.shared.hasCompletedFirstCheck == true` 且 `snapshot.overall != .granted` 才展示；首轮探测完成前不显示任何未授权提示（避免已授权用户每次启动闪引导）
-- [ ] T019 [US1] 构建并执行 `quickstart.md` 场景 A：`bash scripts/build-permission-artifact.sh` → 撤销授权 → 启动 `~/Applications/MacsyZones-dbg.app`，记录文案、按钮落点、日志、是否崩溃
-- [ ] T020 [US1] 把实测结果回填 `specs/003-macos27-permissions/quickstart.md`（场景 A 实测列）与 `research.md` R12 第 2 条：本 app 实际出现在哪个面板、`Privacy_Accessibility`/`Privacy_AccessibilityApps` 深链是否落点正确；若实际不符，同步修正 `contracts/guidance-targets.md`
+- [x] T015 [US1] 改造 `MacsyZones/Info.swift` 的 `AccessibilityPermissionView`：按 `GuidanceTarget` 输出步骤（27.3+ 先 System & App Protection Override、再看无障碍），按钮改为「打开系统设置」「重新检测」，删除旧截图引用（`Accessibility-Permission-Tutorial-1/2.imageset` 不再被引用；资源目录保留不删，删除属清理项不作要求），删除「重启后继续」主路径文案（FR-006/FR-007/FR-008/FR-009）
+- [x] T016 [US1] 在 `MacsyZones/Info.swift` 把 `AccessibilityDialog` 改为非模态：去掉 `.screenSaver` 级别（`:197`、`:228`）、去掉 `onCancel` 闭包里的 `exit(0)`（`:221-224`，`exit(0)` 在 `:223`）、移除 `show()` 里的 `NSApplication.shared.activate(ignoringOtherApps: true)`（`:247-251`），保留 `orderFrontRegardless()` 但不抢焦点（FR-004/FR-010）
+- [x] T017 [US1] 改造 `MacsyZones/App.swift`：删除 `hasAccessibilityPermission`（`:38`）、`checkAccessibilityPermission()`（`:740`）、`requestAccessibilityPermissions()`（`:745`）及其调用（`:554`/`:555`），改为 `PermissionCenter.shared.start()`；`showAccessibilityPermissionPopover()`（`:753`）改为非模态引导入口；用 `grep -rn "hasAccessibilityPermission" MacsyZones` 确认无残留
+- [x] T018 [US1] 在 `MacsyZones/App.swift` 接线引导展示：**必须** `PermissionCenter.shared.hasCompletedFirstCheck == true` 且 `snapshot.overall != .granted` 才展示；首轮探测完成前不显示任何未授权提示（避免已授权用户每次启动闪引导）
+- [x] T019 [US1] 构建并执行 `quickstart.md` 场景 A：`bash scripts/build-permission-artifact.sh` → 撤销授权 → 启动 `~/Applications/MacsyZones-dbg.app`，记录文案、按钮落点、日志、是否崩溃
+- [x] T020 [US1] 把实测结果回填 `specs/003-macos27-permissions/quickstart.md`（场景 A 实测列）与 `research.md` R12 第 2 条：本 app 实际出现在哪个面板、`Privacy_Accessibility`/`Privacy_AccessibilityApps` 深链是否落点正确；若实际不符，同步修正 `contracts/guidance-targets.md`
 
 # 阶段 4：US2 权限状态持续复核（P1）
 

@@ -12,6 +12,7 @@
 
 import Foundation
 import SwiftUI
+import Combine
 
 let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
 let appBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
@@ -35,7 +36,12 @@ let cycleBackwardHotkey = GlobalHotkey() {
     return noErr
 }
 
-var hasAccessibilityPermission = false
+// 权限引导接线（T018）：首轮权限探测完成后，窗口控制未授权才展示一次非模态引导；
+// Combine 订阅的存储与一次性展示标志（AnyCancellable 非 Sendable，故存全局区而非 AppDelegate 属性）。
+var permissionGuidanceCancellable: AnyCancellable?
+var hasShownPermissionGuidance = false
+var hasShownPermissionOnboarding = false
+
 var statusItem: NSStatusItem!
 var accessibilityDialog: AccessibilityDialog?
 var updateFailedDialog: UpdateFailedDialog?
@@ -551,8 +557,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
 
         checkIfRunning()
         createTrayIcon()
-        checkAccessibilityPermission()
-        requestAccessibilityPermissions()
+        // T017/T018：权限探测由 PermissionCenter 负责（@MainActor 隔离）；
+        // 首轮探测完成前不展示任何未授权引导，完成后再按 snapshot.overall 判定。
+        Task { @MainActor in
+            PermissionCenter.shared.start()
+
+            // 首轮探测完成后接线：未授权 → 展示一次非模态引导；已授权 → 补齐 onboarding
+            // （原逻辑在探测同步完成后立即判定，此处等首轮完成，行为等价且单点触发防双弹）。
+            permissionGuidanceCancellable = PermissionCenter.shared.$snapshot
+                .combineLatest(PermissionCenter.shared.$hasCompletedFirstCheck)
+                .receive(on: DispatchQueue.main)
+                .sink { pair in
+                    let (snapshot, firstCheckDone) = pair
+                    guard firstCheckDone else { return }
+
+                    if snapshot?.overall != .granted, !hasShownPermissionGuidance {
+                        hasShownPermissionGuidance = true
+                        self.showAccessibilityPermissionPopover()
+                    }
+                    if snapshot?.overall == .granted,
+                       !onboardingState.hasCompletedOnboarding,
+                       !hasShownPermissionOnboarding {
+                        hasShownPermissionOnboarding = true
+                        showOnboarding()
+                    }
+                }
+        }
         monitorActivations()
         GlobalHotkey.setup()
         quickSnapper.setup()
@@ -623,11 +653,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
                 spaceLayoutPreferences.switchToCurrent()
                 
                 macsyReady.isReady = true
-                
-                if !onboardingState.hasCompletedOnboarding && hasAccessibilityPermission {
-                    showOnboarding()
-                }
-                 
+
+                // onboarding 的判定已移至权限中心首轮探测完成后的接线处（T018）。
+
                 cycleForwardHotkey.register(for: appSettings.cycleWindowsForwardShortcut)
                 cycleBackwardHotkey.register(for: appSettings.cycleWindowsBackwardShortcut)
             }
@@ -736,20 +764,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
     @objc func quitApp() {
         NSApp.terminate(nil)
     }
-    
-    func checkAccessibilityPermission() {
-        let options: [String: Any] = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        hasAccessibilityPermission = AXIsProcessTrustedWithOptions(options as CFDictionary)
-    }
-    
-    func requestAccessibilityPermissions() {
-        if !hasAccessibilityPermission {
-            showAccessibilityPermissionPopover()
-        } else {
-            debugLog("Accessibility permissions granted.")
-        }
-    }
-    
+
+    // T017：旧的 checkAccessibilityPermission() / requestAccessibilityPermissions()
+    // 已删除；未授权引导统一走 showAccessibilityPermissionPopover()（非模态）。
+
     func showAccessibilityPermissionPopover() {
         if accessibilityDialog == nil {
             accessibilityDialog = AccessibilityDialog()

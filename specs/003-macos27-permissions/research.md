@@ -165,7 +165,7 @@
 
 1. **`NSApplication.didBecomeActiveNotification` 在 `.prohibited` 激活策略下可能永不触发**：应用启动即 `NSApp.setActivationPolicy(.prohibited)`（`MacsyZones/App.swift:550`），不会成为前台应用。因此复核触发不能只依赖它，必须补可触发的时机（点击状态栏图标、设置窗口 `didBecomeKey`、30 秒轮询）。若实机验证发现该通知确实不触发，从实现中移除并记录。
 
-2. **面板归属不确定**：本 app 是否出现在 `System & App Protection Override` 还是 `无障碍`，需实机授权时确认；引导按「先主后备」措辞，验证时记录实测结果并回填 `quickstart.md`。
+2. **面板归属不确定**：本 app 是否出现在 `System & App Protection Override` 还是 `无障碍`，需实机授权时确认；引导按「先主后备」措辞，验证时记录实测结果并回填 `quickstart.md`。实测进展（2026-11-21）：本机为 macOS 27.3（Build 26C5047e），但当前本 bundle 处于未授权态（探针 `axError=-25211`，`preflight` denied），系统设置面板归属须在真实授权流程中由用户确认（未授权状态下无面板条目可查）；引导文案已按「先 Override 后无障碍」实现，深链落点验证留待场景 A 人工部分与场景 B。
 3. **per-target 授权范围**：27.3 beta 2 已知问题（Override app 无法控制 Safari/WebKit app）可能让部分用户「部分窗口不可吸附」；诊断面板需如实呈现，不在本 feature 内绕过。
 4. **27.3 不在 SDK 内**：无法编译新符号，若苹果后续提供 `AXIsProcessTrusted` 的替代 API 或 entitlement，需另立 feature。
 5. **升级路径无法在本机自动化**：本机已升级到 27.3，27.2→27.3 的「已授权保持不变」只能在用户机器上手工验证，quickstart 给出步骤。

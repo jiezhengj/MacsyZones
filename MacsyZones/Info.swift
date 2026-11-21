@@ -13,11 +13,18 @@
 import SwiftUI
 
 struct AccessibilityPermissionView: View {
-    var onRestart: (() -> Void)?
-    var onCancel: (() -> Void)?
-    
-    @State private var expandedImage: String? = nil
-    
+    var onClose: (() -> Void)?
+
+    // 引导目标（面板 + 深链 + 文字步骤），按 contracts/guidance-targets.md 契约生成。
+    @State private var target: GuidanceTarget?
+
+    init(onClose: (() -> Void)? = nil) {
+        self.onClose = onClose
+        let minor = ProcessInfo.processInfo.operatingSystemVersion.minorVersion
+        let primary = PermissionGuidance.primaryPane(forMinor: minor)
+        _target = State(initialValue: PermissionGuidance.makeTarget(forMinor: minor, pane: primary))
+    }
+
     var body: some View {
         ZStack {
             VStack(alignment: .center, spacing: 12) {
@@ -25,98 +32,47 @@ struct AccessibilityPermissionView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 75, height: 75)
-                
+
                 VStack(alignment: .center, spacing: 2) {
-                    Text("需要辅助功能权限")
+                    Text("MacsyZones 需要窗口控制权限")
                         .lineSpacing(6)
                         .font(.title)
 
                     Spacer().frame(height: 26)
 
-                    Text("MacsyZones 需要辅助功能权限才能工作。请按照以下步骤操作:")
+                    Text("MacsyZones 需要相应权限才能排列其他 app 的窗口。请按以下步骤操作：")
                         .font(.system(size: 13))
                         .lineSpacing(5)
                         .multilineTextAlignment(.center)
-                    
-                    Spacer().frame(height: 26)
-                    
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("1.")
-                                .fontWeight(.bold)
-                                .foregroundColor(.blue)
-                            Text("打开系统设置")
-                        }
 
-                        HStack {
-                            Text("2.")
-                                .fontWeight(.bold)
-                                .foregroundColor(.blue)
-                            Text("前往隐私与安全性 → 辅助功能")
+                    Spacer().frame(height: 26)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        if let target {
+                            ForEach(Array(target.steps.enumerated()), id: \.offset) { index, step in
+                                HStack(alignment: .top, spacing: 6) {
+                                    Text("\(index + 1).")
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.blue)
+                                    Text(step)
+                                        .multilineTextAlignment(.leading)
+                                }
+                            }
                         }
-                        
-                        Button(action: {
-                            expandedImage = "Accessibility-Permission-Tutorial-1"
-                        }) {
-                            Image("Accessibility-Permission-Tutorial-1")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(height: 60)
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .help("Click to enlarge")
-                        
-                        HStack {
-                            Text("3.")
-                                .fontWeight(.bold)
-                                .foregroundColor(.blue)
-                            Text("启用 MacsyZones")
-                        }
-                        
-                        Button(action: {
-                            expandedImage = "Accessibility-Permission-Tutorial-2"
-                        }) {
-                            Image("Accessibility-Permission-Tutorial-2")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(height: 60)
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .help("Click to enlarge")
                     }
                     .font(.system(size: 12))
                     .padding()
                     .background(Color.blue.opacity(0.1))
                     .cornerRadius(16)
-                    
+
                     Spacer().frame(height: 26)
-                    
+
                     HStack(spacing: 12) {
                         Button(action: {
-                            onCancel?()
+                            let minor = ProcessInfo.processInfo.operatingSystemVersion.minorVersion
+                            PermissionGuidance.open(PermissionGuidance.primaryPane(forMinor: minor))
                         }) {
-                            Text("取消")
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                                .background(Color.gray.opacity(0.2))
-                                .cornerRadius(8)
-                        }
-                        .buttonStyle(.plain)
-
-                        Button(action: {
-                            onRestart?()
-                        }) {
-                            Text("重启应用")
+                            Text("打开系统设置")
                                 .fontWeight(.bold)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
@@ -125,14 +81,29 @@ struct AccessibilityPermissionView: View {
                                 .cornerRadius(8)
                         }
                         .buttonStyle(.plain)
+
+                        Button(action: {
+                            PermissionCenter.shared.recheck(trigger: "manual")
+                        }) {
+                            Text("重新检测")
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(Color.gray.opacity(0.2))
+                                .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
                     }
 
-                    Spacer().frame(height: 26)
+                    Spacer().frame(height: 12)
 
-                    Text("启用辅助功能权限后，请重启 MacsyZones 以继续。")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
+                    Button(action: {
+                        onClose?()
+                    }) {
+                        Text("关闭")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 25)
@@ -143,44 +114,7 @@ struct AccessibilityPermissionView: View {
             .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .multilineTextAlignment(.center)
-            
-            if let imageName = expandedImage {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        expandedImage = nil
-                    }
-                
-                VStack(alignment: .center, spacing: 0) {
-                    Image(imageName)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: 500, maxHeight: 600)
-                        .cornerRadius(12)
-                        .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
-                    
-                    HStack {
-                        Spacer()
-                        Button(action: {
-                            expandedImage = nil
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(.white)
-                                .background(Color.black.opacity(0.5))
-                                .clipShape(Circle())
-                                .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
-                        }
-                        .buttonStyle(.plain)
-                        Spacer()
-                    }
-                    
-                    Spacer()
-                }
-                .transition(.opacity.combined(with: .scale))
-            }
         }
-        .animation(.easeInOut(duration: 0.3), value: expandedImage)
     }
 }
 
@@ -194,7 +128,7 @@ class AccessibilityPanel: NSPanel {
                   backing: .buffered,
                   defer: false)
         
-        self.level = .screenSaver
+        self.level = .floating
         self.isMovableByWindowBackground = true
         self.isOpaque = false
         self.backgroundColor = .clear
@@ -214,18 +148,12 @@ class AccessibilityDialog {
         panel = AccessibilityPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 700))
         
         let view = AccessibilityPermissionView(
-            onRestart: {
+            onClose: {
                 self.dismiss()
-                restartApp()
-            },
-            onCancel: {
-                self.dismiss()
-                exit(0)
             }
         )
         panel.contentView = NSHostingView(rootView: view)
-        
-        panel.level = .screenSaver
+
         panel.isReleasedWhenClosed = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.backgroundColor = .clear
@@ -245,9 +173,9 @@ class AccessibilityDialog {
     }
     
     func show() {
+        // 非模态引导（FR-004/FR-010）：只前置显示，不抢焦点、不激活本 app。
         panel.orderFrontRegardless()
         positionInLeftHalf()
-        NSApplication.shared.activate(ignoringOtherApps: true)
     }
     
     func dismiss() {

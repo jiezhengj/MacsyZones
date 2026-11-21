@@ -72,6 +72,20 @@ bash scripts/permission-smoke.sh
 - 应用不退出、不崩溃。
 - 若确实存在「必须重启」的限制，只提示一次并说明原因；连续两次启动不重复提示（FR-009）。
 
+实测记录（2026-11-21，macOS 27.3 Build 26C5047e，本机当时本 bundle 即处于未授权态，故未做撤销授权步骤、直接复现了本场景的未授权路径；自动化部分已验，🔑 人工部分见下）：
+
+- 已自动化验证（`~/Applications/MacsyZones-dbg.app`，两次启动各观察 20 秒以上）：
+  - 应用不崩溃、不退出：`kill`（SIGTERM）前进程稳定运行，退出后无残留。
+  - 日志：首轮 `trigger=launch` 全部探针 `status=denied`（frontmost `axError=-25211`、api/preflight 同 denied），汇总 `capability=windowControl status=denied`；随后 `trigger=poll` 每 5 秒复核（与 R4 的 5s×24 一致）。
+  - 探针延迟：单探针 `latencyMs` 最大 84（远小于 1000 阈值）。
+  - 未授权引导出现：`CGWindowList` 检测到 MacsyZones 面板（420×700，layer 3，左半区），即非模态 `AccessibilityDialog` 骨架——未弹阻塞式模态（T016 已去 `.screenSaver` 级别与 `exit(0)`）。
+  - 面板出现时机：首轮探测完成之后（启动后约 1 秒内），未抢焦点。
+- 留待人工（需解锁桌面/真实交互）：
+  - 面板文案与「打开系统设置」「重新检测」按钮的人工确认（验证期间屏幕处于锁屏，截图只见锁屏界面）。
+  - 点「打开系统设置」后系统设置实际停留的面板（同时验证 R12 第 2 条的面板归属）。
+  - 授权后不闪引导（场景 B）：本机当前未授权，无法复现 granted 首启。
+  - 撤销授权开关的实际位置（若列表中有 MacsyZones 的话）。
+
 ### 场景 B：授权后自动恢复（关键，🔑）
 
 1. 承接场景 A，在系统设置里把 MacsyZones 加入/打开授权。
