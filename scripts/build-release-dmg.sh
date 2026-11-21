@@ -21,7 +21,7 @@ fi
 projectRoot="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$projectRoot"
 
-expectedVersion="$({ rg -o 'MARKETING_VERSION = [^;]+' MacsyZones.xcodeproj/project.pbxproj || true; } | sed 's/.*= //' | sort -u)"
+expectedVersion="$({ grep -Eo 'MARKETING_VERSION = [^;]+' MacsyZones.xcodeproj/project.pbxproj || true; } | sed 's/.*= //' | sort -u)"
 if [[ "$expectedVersion" != "$releaseVersion" ]]; then
     echo "项目 MARKETING_VERSION 为 [$expectedVersion]，与请求版本 [$releaseVersion] 不一致。" >&2
     echo "请先更新 MacsyZones.xcodeproj/project.pbxproj，再重新执行。" >&2

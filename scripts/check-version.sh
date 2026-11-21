@@ -25,7 +25,7 @@ case "$requestedLevel" in
         ;;
 esac
 
-projectVersions="$({ rg -o 'MARKETING_VERSION = [0-9]+\.[0-9]+\.[0-9]+' MacsyZones.xcodeproj/project.pbxproj || true; } | sed 's/.*= //' | sort -u)"
+projectVersions="$({ grep -Eo 'MARKETING_VERSION = [0-9]+\.[0-9]+\.[0-9]+' MacsyZones.xcodeproj/project.pbxproj || true; } | sed 's/.*= //' | sort -u)"
 if [[ -z "$projectVersions" ]]; then
     echo "找不到 MARKETING_VERSION" >&2
     exit 1
@@ -39,14 +39,11 @@ if [[ "$projectVersions" != "$targetVersion" ]]; then
     exit 1
 fi
 
-currentVersion="$({ rg -o '^当前已发布版本：`v[0-9]+\.[0-9]+\.[0-9]+`' RELEASES.md || true; } | sed -E 's/.*`v([^`]*)`.*/\1/' | head -n 1)"
+currentVersion="$({ grep -Eo '^当前已发布版本：`v[0-9]+\.[0-9]+\.[0-9]+`' RELEASES.md || true; } | sed -E 's/.*`v([^`]*)`.*/\1/' | head -n 1)"
 if [[ -z "$currentVersion" ]]; then
     echo "RELEASES.md 缺少当前已发布版本记录" >&2
     exit 1
 fi
-
-nextVersion="$({ rg -o '^下一发布目标：`v[0-9]+\.[0-9]+\.[0-9]+`' RELEASES.md || true; } | sed -E 's/.*`v([^`]*)`.*/\1/' | head -n 1)"
-nextLevel="$({ rg -o '^下一发布级别：`(Major|Minor|Patch)`' RELEASES.md || true; } | sed -E 's/.*`([^`]*)`.*/\1/' | tr '[:upper:]' '[:lower:]' | head -n 1)"
 
 IFS=. read -r currentMajor currentMinor currentPatch <<< "$currentVersion"
 IFS=. read -r targetMajor targetMinor targetPatch <<< "$targetVersion"
@@ -72,15 +69,6 @@ esac
 
 if [[ "$targetVersion" != "$expectedVersion" ]]; then
     echo "[$requestedLevel] 发布必须使用 [$expectedVersion]，实际目标为 [$targetVersion]。" >&2
-    exit 1
-fi
-
-if [[ -n "$nextVersion" && "$targetVersion" != "$nextVersion" ]]; then
-    echo "RELEASES.md 登记的下一发布目标为 [$nextVersion]，不能发布 [$targetVersion]。" >&2
-    exit 1
-fi
-if [[ -n "$nextLevel" && "$requestedLevel" != "$nextLevel" ]]; then
-    echo "RELEASES.md 登记的下一发布级别为 [$nextLevel]，不能声明 [$requestedLevel]。" >&2
     exit 1
 fi
 

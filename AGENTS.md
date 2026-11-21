@@ -17,7 +17,7 @@
 ### 长期有效文档的权威层级
 
 - `VERSIONING.md`：版本级别判定、版本递增算法和发布/资产修复边界。
-- `RELEASES.md`：本项目自己的已发布版本、上游基线和下一发布目标。
+- `RELEASES.md`：本项目自己的已发布版本和上游基线（不登记尚未发布的版本）。
 - `BUILD.md`：签名、构建、DMG 和 GitHub Release 的操作细节。
 - `README.md`：面向用户的功能和版本说明。
 
@@ -162,7 +162,7 @@ git show upstream/main:MacsyZones/<文件名>.swift | grep -A <行数> "<关键�
 1. 版本级别按完整 Goal/发布范围判定，不按最后一个 commit 判定。
 2. 多种变更同时存在时采用最高级别：`Major > Minor > Patch`。
 3. 跨越两个以上核心域并重构职责边界、持久化迁移、核心 UI、更新器或签名发布边界时，至少是 Major。
-4. 回滚后的稳定代码只保留版本门禁、正式签名和可重复 DMG 构建改进，当前已发布版本是 `v1.2.5`，下一发布目标是 `v1.2.6 / Patch`；新架构和 UI 改造不得进入后续版本。
+4. 不预设下一个版本：版本号与级别只在创建 Release 之前，按本次发布范围内的实际变更判定，不在 `RELEASES.md` 或任何文档中提前登记下一版本的性质或版本号。
 5. 修改 `MARKETING_VERSION` 后，必须先执行：
 
    ```bash
@@ -225,13 +225,13 @@ git show upstream/main:MacsyZones/<文件名>.swift | grep -A <行数> "<关键�
 
 **每次发布 Release 必须执行以下全部步骤**，不可跳过：
 
-**步骤 1：登记版本决策并更新版本号**
+**步骤 1：判定版本决策并更新版本号**
 
-先在 [`RELEASES.md`](RELEASES.md) 登记下一发布目标和级别，再更新 Xcode 项目版本号。当前回滚后的发布目标是 `v1.2.6 / Patch`。
+按本次发布范围内的实际变更判定级别与版本号（规则见 [`VERSIONING.md`](VERSIONING.md)），再更新 Xcode 项目版本号；`RELEASES.md` 只在 Release 创建成功后记录，不提前登记下一版本。
 
 ```bash
-targetVersion=1.2.6
-bumpLevel=patch
+targetVersion=<X.Y.Z>
+bumpLevel=<major|minor|patch>
 sed -i '' "s/MARKETING_VERSION = .*/MARKETING_VERSION = ${targetVersion};/g" MacsyZones.xcodeproj/project.pbxproj
 scripts/check-version.sh "$targetVersion" "$bumpLevel"
 ```
@@ -317,7 +317,7 @@ rm -f "/tmp/MacsyZones-v${targetVersion}.dmg"
 不要把“当前项目版本”“最近已发布版本”和“上游版本”混为一谈：
 
 - 当前项目构建版本：以 `project.pbxproj` 为准。
-- 最近已发布版本和下一发布目标：以 `RELEASES.md` 为准。
+- 最近已发布版本：以 `RELEASES.md` 为准；下一个版本不预先登记。
 - 上游基线：只记录用于同步的上游版本，不参与本项目递增计算。
 - 任何新代码 Release 都必须通过 `scripts/check-version.sh`；资产修复例外仅适用于同一代码、同一 tag 的 DMG 替换。
 

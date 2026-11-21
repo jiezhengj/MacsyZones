@@ -88,7 +88,7 @@ bash scripts/build-release-dmg.sh "$targetVersion" "$bumpLevel"
 # 输出：/tmp/MacsyZones-v1.2.6.dmg
 ```
 
-执行 Release 构建前，必须先在 [`RELEASES.md`](RELEASES.md) 登记下一发布目标和级别，并更新 `MARKETING_VERSION`。版本规则和 Major/Minor/Patch 判定见 [`VERSIONING.md`](VERSIONING.md)。
+执行 Release 构建前，先按本次发布范围内的实际变更判定级别与版本号，并更新 `MARKETING_VERSION`（不能靠修改 DMG 文件名绕过校验）。版本级别判定见 [`VERSIONING.md`](VERSIONING.md)；[`RELEASES.md`](RELEASES.md) 只在 Release 创建成功后记录，不提前登记下一版本。
 
 验证已安装 App 或构建产物时，使用同一套正式身份检查：
 

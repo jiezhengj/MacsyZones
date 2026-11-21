@@ -5,7 +5,7 @@
 ## 权威来源
 
 - App 的当前构建版本唯一来源：`MacsyZones.xcodeproj/project.pbxproj` 中所有 Configuration 的 `MARKETING_VERSION`。
-- 本项目已发布版本、上游基线和下一发布目标：[`RELEASES.md`](RELEASES.md)。
+- 本项目已发布版本和上游基线：[`RELEASES.md`](RELEASES.md)。
 - Agent 的执行约束：[`AGENTS.md`](AGENTS.md)。
 - 签名、构建和 DMG 操作：[`BUILD.md`](BUILD.md)。
 - 阶段性设计和实施过程文档不属于版本号或发布规则的依据。
@@ -62,9 +62,9 @@ Major > Minor > Patch
 
 “修改文件很少”不能单独证明是 Patch；“修改文件很多”也不能单独证明是 Major，必须结合核心域和架构契约判定。
 
-## 发布前必须完成的版本决策
+## 发布时的版本决策
 
-每个包含代码变更的 Goal 在开始实施前，必须记录以下内容；记录可以放在 Goal 计划、提交说明或对应 Release 记录中，但必须可追溯：
+下一个版本的版本号和级别不预先设定，也不在开始实施前登记：谁能提前预测下一次发布包含什么性质的变更。版本号与级别在**创建 Release 之前**，按本次发布范围内的实际变更判定，并记录以下内容；记录可以放在 Release 记录或提交说明中，但必须可追溯：
 
 ```text
 基线版本：vX.Y.Z
@@ -76,7 +76,7 @@ Major > Minor > Patch
 判定理由：一句话说明触发了哪条规则
 ```
 
-本次回滚保留的是稳定代码，以及版本门禁、正式签名和可重复 DMG 构建改进；当前已发布版本为 `v1.2.5`，下一发布目标为 `v1.2.6 / Patch`。新架构和 UI 改造不进入后续版本。
+判定记录示例：一次只修复窗口观察缺陷、不改配置与架构边界的发布 → 变更核心域「窗口与吸附」，级别 Patch，目标版本 = 当前已发布版本 patch 位 +1，理由「仅缺陷修复，不改变配置格式与核心架构边界」。
 
 ## 自动阻断规则
 
@@ -91,7 +91,8 @@ scripts/check-version.sh <target-version> <major|minor|patch>
 - `MARKETING_VERSION` 不唯一或与目标版本不一致。
 - 目标版本不高于 `RELEASES.md` 中的当前已发布版本。
 - 目标版本与声明的 Major/Minor/Patch 级别不匹配。
-- `RELEASES.md` 中登记了下一发布目标，但命令使用了另一个版本或级别。
+
+该检查不要求、也不读取任何“下一版本”登记：发布方自己按实际变更声明目标版本和级别，脚本只校验它与当前版本、项目构建版本之间是否自洽。
 
 `scripts/build-release-dmg.sh` 会自动调用同一检查，因此不能只修改 DMG 文件名绕过版本校验。
 
