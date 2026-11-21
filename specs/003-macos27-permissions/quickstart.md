@@ -106,12 +106,17 @@ bash scripts/permission-smoke.sh
 
 预期：诊断面板如实显示「部分目标受控」；不可控的目标吸附失败时不崩溃、不刷错误日志；`notes` 里出现对应说明。
 
-### 场景 F：输入监听关闭（🔑）
+### 场景 F：输入监听关闭 与 窗口控制关闭（🔑，两个方向都验）
 
-1. 系统设置 → 隐私与安全性 → 输入监控（Input Monitoring）中关闭 MacsyZones。
-2. 重启 app。
+**F1 只关输入监控**：系统设置 → 隐私与安全性 → 输入监控（Input Monitoring）中关闭 MacsyZones → 重启 app。
 
-预期：拖动吸附不可用但 Carbon 全局快捷键仍工作；横幅说明「缺少输入监听权限」；诊断面板 `inputMonitoring=denied`、`windowControl=granted`。重新打开输入监控后**不重启**也应恢复拖动（`research.md` R13 的补装路径）。
+预期：`inputMonitoring=denied`、`windowControl=granted`；**鼠标拖动吸附照常可用**；仅修饰键/吸附键驱动的布局切换与吸附键组合暂停，横幅说明「缺少输入监控」；Carbon 全局快捷键仍工作。重新打开输入监控后**不重启**也应恢复键盘功能（`research.md` R13 的补装路径）。
+
+**F2 只关窗口控制**：系统设置 → 隐私与安全性 → System & App Protection Override（27.3+）或辅助功能（27.0–27.2）中关闭 MacsyZones → 重启 app。
+
+预期：`windowControl=denied`、`inputMonitoring=granted`；鼠标拖动/悬停高亮/右键菜单不工作且不弹崩溃；Carbon 快捷键仍工作；布局编辑器可打开、保存时提示只读；横幅指向正确面板。重新打开后**不重启**应恢复拖动（鼠标类监视器按 `windowControl` 状态补装）。
+
+> 反向回归：F1 不得出现「拖动失效」，F2 不得出现「键盘切换仍报缺输入监控」——两条都是评审发现的绑定错位，必须各验一次。
 
 ### 场景 G：已授权用户多次登录不误报（SC-003）
 

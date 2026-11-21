@@ -119,8 +119,9 @@
 |---|---|
 | 窗口控制 granted | 全部功能可用 |
 | 窗口控制 denied/unknown | 不注册吸附/拖动处理；布局编辑器可打开但保存时提示；菜单栏图标显示「未授权」；不崩溃 |
-| 输入监听 granted | 全局鼠标/键盘监听正常 |
-| 输入监听 denied | 不安装全局监听；快捷键（Carbon `RegisterEventHotKey`）仍工作；拖动吸附暂停并在横幅标注原因 |
+| 输入监听 granted | 全局键盘监听（`keyDown`/`flagsChanged`）正常 |
+| 输入监听 denied | 不安装全局键盘监听：修饰键+吸附键驱动的布局切换与吸附键组合暂停并标注；鼠标拖动/吸附不受影响（属窗口控制）；Carbon 全局热键仍工作 |
+| 窗口控制 denied | 不安装全局鼠标监听：拖动、悬停高亮、右键菜单暂停 |
 | 部分目标可控（per-target） | 诊断面板显示「部分应用受控」；吸附失败时提示一次「该系统授权按应用区分」 |
 
 **理由**：spec FR-012/FR-014 要求按能力降级且可解释；Carbon 全局热键不依赖 Input Monitoring，所以「拖动不可用但快捷键可用」是可实现且诚实的状态。
@@ -148,12 +149,14 @@
 
 ## R13：输入监听监视器按状态迁移「装/卸」
 
-**决策**：全局 `NSEvent` 监视器不在启动时一次性决定，而是与 `inputMonitoring` 状态绑定：
-- 启动安装：`inputMonitoring != .denied` 时安装（`unknown` 也安装——FR-013 只禁止「假定已可用」，不要求在未判定前自废功能）；
-- 状态迁移：`PermissionCenter.onStatusChange` 观察到 `inputMonitoring` 变为 `granted` 时补装、变为 `denied` 时卸载（`NSEvent.removeMonitor`）；
+**决策**：全局 `NSEvent` 监视器不在启动时一次性决定，而是**按事件类型分别绑定对应能力**：
+- 鼠标类（`leftMouseDown`/`leftMouseDragged`/`leftMouseUp`/`rightMouseDown` 在 `MacsyZones/App.swift:607/611/615/984`，`mouseMoved` 在 `MacsyZones/Layout.swift:1123`）→ 绑 `windowControl`（它们本就依赖辅助功能授权，现有实现即如此）；
+- 键盘类（`keyDown`/`flagsChanged`，`MacsyZones/App.swift:866`）→ 绑 `inputMonitoring`；
+- 启动安装规则：对应能力 `!= .denied` 时安装（`unknown` 也安装——FR-013 只禁止「假定已可用」，不要求在未判定前自废功能）；
+- 状态迁移：`PermissionCenter.onStatusChange` 观察到某个能力变为 `granted` 时补装该类、变为 `denied` 时卸载（`NSEvent.removeMonitor`），两类互不牵连；
 - 卸载点：`stop()` 与 `applicationWillTerminate` 统一卸载，避免重复安装导致同一事件被处理多次。
 
-**理由**：`NSEvent.addGlobalMonitorForEvents` 没有「暂停」语义，只能增删；若只做启动时判定，已授权用户一旦在首轮探测完成前启动（`unknown` → 不装）就会整场失去拖动吸附且不会自愈。这是评审中发现的实现级缺陷（BLOCKER）。
+**理由**：`NSEvent.addGlobalMonitorForEvents` 没有「暂停」语义，只能增删；若只做启动时一次性判定，已授权用户一旦在首轮探测完成前启动（`unknown` → 不装）就会整场失去对应功能且不会自愈（评审指出的 BLOCKER）。另外必须按类型分开绑定：把鼠标监视器绑到 `inputMonitoring` 会让「只开窗口控制、没开输入监控」的用户反而失去拖动（评审 MAJOR）。
 
 **备选**：启动时无脑安装（未授权时监听不生效但不崩溃，代价是「静默失灵」不可见）；定时重装（会重复注册，事件被处理多次）。
 

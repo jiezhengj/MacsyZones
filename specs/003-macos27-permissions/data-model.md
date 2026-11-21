@@ -9,7 +9,7 @@
 | 值 | 含义 | 判定来源 |
 |---|---|---|
 | `windowControl` | 控制其他 app 的窗口（读写 `kAXPositionAttribute` / `kAXSizeAttribute`） | AX 探针（R2） |
-| `inputMonitoring` | 全局输入监听（`NSEvent` 全局监视器、`CGEventTap`） | `CGPreflightListenEventAccess()` |
+| `inputMonitoring` | 全局键盘监听（`keyDown`/`flagsChanged` 的 `NSEvent` 全局监视器） | `CGPreflightListenEventAccess()` |
 | `eventPosting` | 合成并投递输入事件（`CGEvent.post` / event tap 回注） | 当前不用；固定 `notRequired` |
 
 ## PermissionStatus

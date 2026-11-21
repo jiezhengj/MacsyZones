@@ -13,7 +13,7 @@
 - [ ] T001 确认起点：`git status --short` 为空、当前分支为 `custom`；跑 `bash scripts/build-debug.sh`，记录 `warning:` 计数与末 20 行到 `/tmp/m003-warnings-baseline.txt`
 - [ ] T002 新建 `scripts/build-permission-artifact.sh`（`research.md` R14）：`xcodebuild -project MacsyZones.xcodeproj -scheme MacsyZones -configuration Debug -derivedDataPath /tmp/m003-debug CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=C7C84AAA3B67FACEA73042570A0BA2FC3D19E613 DEVELOPMENT_TEAM=74FR87HYTH build` → `rm -rf ~/Applications/MacsyZones-dbg.app` → `cp -R /tmp/m003-debug/Build/Products/Debug/MacsyZones.app ~/Applications/MacsyZones-dbg.app` → `bash scripts/verify-signing.sh ~/Applications/MacsyZones-dbg.app`；执行一次确认产物可启动
 - [ ] T003 [P] 抓现有权限行为基线：启动 `~/Applications/MacsyZones-dbg.app`，`log show --last 5m --predicate 'process == "tccd" AND eventMessage CONTAINS "MeowingCat.MacsyZones"'` 与 `log show --last 5m --predicate 'subsystem == "MeowingCat.MacsyZones"'` 存 `/tmp/m003-permission-baseline.log`，并记下当前是否弹模态框、是否要求重启（后续回归对比用）
-- [ ] T004 [P] 记录边界基线到 `/tmp/m003-boundary-baseline.txt`：`grep -rn "#available" MacsyZones --include=*.swift`（当前 9 处：SettingsView.swift:915/941/950、Onboarding.swift:263、Layout.swift:56/916/937/968/985）、`grep -rn "hasAccessibilityPermission\|AXIsProcessTrustedWithOptions" MacsyZones`（当前 6 处：`App.swift:38/554/555/627/742/746`）、`ls scripts/`（当前 5 个脚本 + `scripts/tests/` 仅 002 的 lazy 文件）
+- [ ] T004 [P] 记录边界基线到 `/tmp/m003-boundary-baseline.txt`：`grep -rn "#available" MacsyZones --include=*.swift`（当前 9 处：SettingsView.swift:915/941/950、Onboarding.swift:263、Layout.swift:56/916/937/968/985）、`grep -rn "hasAccessibilityPermission" MacsyZones`（当前 4 处：`App.swift:38/627/742/746`）、`grep -rn "AXIsProcessTrustedWithOptions" MacsyZones`（当前 1 处：`App.swift:742`）、`grep -rn "checkAccessibilityPermission\|requestAccessibilityPermissions" MacsyZones`（定义 `App.swift:740`/`:745`，调用 `:554`/`:555`）、`ls scripts/`（当前 5 个脚本 + `scripts/tests/` 仅 002 的 lazy 文件）
 
 # 阶段 2：基础（阻塞所有用户故事）
 
@@ -68,9 +68,9 @@
 
 **独立验收**：`quickstart.md` 场景 F（关闭输入监控 → 拖动暂停、快捷键仍可用、不崩溃）与其恢复路径（重新打开后不重启即可拖动）。
 
-- [ ] T034 [US4] 在 `MacsyZones/App.swift` 抽出「安装/卸载全局输入监视器」函数：启动时 `inputMonitoring != .denied` 即安装（`unknown` 也安装，FR-013 只禁止假定可用、不要求未判定前自废功能），覆盖 `leftMouseDown`（`:607`）、`leftMouseDragged`（`:611`）、`leftMouseUp`（`:615`）、`keyDown`+`flagsChanged`（`:866`）、`rightMouseDown`（`:984`）；`MacsyZones/Layout.swift` 的 `mouseMoved` 监视器（`:1123`）同样纳入安装/卸载
-- [ ] T035 [US4] 通过 `PermissionCenter.onStatusChange` 实现状态迁移：`inputMonitoring` → `granted` 补装、→ `denied` 卸载；`PermissionCenter.stop()` 与 `applicationWillTerminate`（`MacsyZones/App.swift`）统一卸载并防重复安装（`research.md` R13、`data-model.md` 状态机）
-- [ ] T036 [US4] 实现降级矩阵（FR-012/FR-013/FR-014）：缺输入监听 → 拖动与悬停高亮暂停、横幅注明原因、Carbon 快捷键保留；缺窗口控制 → 布局编辑器可打开但保存/吸附提示只读；per-target 部分可控 → 诊断面板 `notes` 标注「部分目标受控」，不刷错误日志、不整体报未授权
+- [ ] T034 [US4] 在 `MacsyZones/App.swift` 抽出「安装/卸载全局监视器」函数，并**按事件类型分别绑定能力**：鼠标类 `leftMouseDown`（`:607`）、`leftMouseDragged`（`:611`）、`leftMouseUp`（`:615`）、`rightMouseDown`（`:984`）与 `MacsyZones/Layout.swift:1123` 的 `mouseMoved` 绑 `windowControl`；键盘类 `keyDown`+`flagsChanged`（`:866`）绑 `inputMonitoring`；对应能力 `!= .denied` 时安装（`unknown` 也安装，FR-013 只禁止假定可用、不要求未判定前自废功能）；不得把鼠标监视器绑到 `inputMonitoring`
+- [ ] T035 [US4] 通过 `PermissionCenter.onStatusChange` 实现按类型的状态迁移：`windowControl` → `granted` 补装鼠标类、→ `denied` 卸载鼠标类；`inputMonitoring` 同理只作用于键盘类，两类互不牵连；`PermissionCenter.stop()` 与 `applicationWillTerminate`（`MacsyZones/App.swift`）统一卸载并防重复安装（`research.md` R13、`data-model.md` 状态机）
+- [ ] T036 [US4] 实现降级矩阵（FR-012/FR-013/FR-014）：缺窗口控制 → 鼠标拖动/悬停高亮/右键菜单暂停、布局保存提示只读、横幅注明原因；缺输入监听 → 仅修饰键/吸附键驱动的布局切换暂停、鼠标拖动照常；Carbon 快捷键两者都保留；per-target 部分可控 → 诊断面板 `notes` 标注「部分目标受控」，不刷错误日志、不整体报未授权
 - [ ] T037 [US4] 构建并执行 `quickstart.md` 场景 F 与场景 B 的恢复路径（重新打开输入监控后不重启即可拖动），把降级行为与恢复时间回填 `quickstart.md` 实测记录
 
 # 阶段 7：US5 跨 27.x 子版本与升级路径（P3）
