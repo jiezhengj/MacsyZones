@@ -69,6 +69,10 @@ final class WindowObserverManager {
 
     private var entries: [pid_t: AppEntry] = [:]
 
+    /// Guards the delayed re-scans so quitting the app does not leave work
+    /// items that touch AX after teardown.
+    private var pendingScanWorkItems: [DispatchWorkItem] = []
+
     private let observerRunLoop: CFRunLoop
 
     private final class RunLoopBox: @unchecked Sendable {
@@ -166,12 +170,26 @@ final class WindowObserverManager {
     }
 
     @discardableResult
-    func observeWindow(pid: pid_t, element: AXUIElement) -> Bool {
+    func observeWindow(pid: pid_t, element: AXUIElement, attempt: Int = 0) -> Bool {
         guard pid > 0 else { return false }
 
-        guard isStandardWindow(element) else { return false }
+        // AX attributes may be temporarily unavailable (window still being
+        // constructed, app busy). That is "indeterminate", not "not a window":
+        // retry with backoff instead of dropping the window for good.
+        switch checkStandardWindow(element) {
+        case .notStandard:
+            return false
+        case .indeterminate:
+            scheduleObserveRetry(pid: pid, element: element, attempt: attempt)
+            return false
+        case .standard:
+            break
+        }
 
-        guard observeApp(pid: pid), var entry = entries[pid] else { return false }
+        guard observeApp(pid: pid), var entry = entries[pid] else {
+            scheduleObserveRetry(pid: pid, element: element, attempt: attempt)
+            return false
+        }
         guard let windowID = getWindowID(from: element), windowID != 0 else {
             debugLog("Refusing to tag an AX window without a valid window ID: pid=\(pid)")
             return false
@@ -228,6 +246,135 @@ final class WindowObserverManager {
         entries[pid] = entry
         debugLog("AX window observer ready: pid=\(pid), windowID=\(windowID), notifications=\(registeredNotifications.count)")
         return true
+    }
+
+    private func scheduleObserveRetry(pid: pid_t, element: AXUIElement, attempt: Int) {
+        guard attempt < 3 else {
+            debugLog("Giving up on pid \(pid) window after repeated AX errors; it won't be observed.")
+            return
+        }
+
+        let delayNanoseconds = UInt64(150_000_000 * (attempt + 1))
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: delayNanoseconds)
+            self.observeWindow(pid: pid, element: element, attempt: attempt + 1)
+        }
+    }
+
+    /// Cross-checks the AX window list against the on-screen CG window list and
+    /// re-registers windows that AX did not report. A window can appear in CG
+    /// while still missing from `kAXWindowsAttribute`; those windows never emit
+    /// AX movement notifications and silently lose snapping until this heals.
+    func reconcile(pid: pid_t, axWindows: [AXUIElement]) {
+        guard pid > 0, let entry = entries[pid] else { return }
+
+        var axIDs = Set<UInt32>()
+        for window in axWindows {
+            if let id = getWindowID(from: window) {
+                axIDs.insert(id)
+            }
+        }
+
+        guard let cgList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
+                                                      kCGNullWindowID) as? [[String: Any]]
+        else { return }
+
+        var cgTitles: [UInt32: String] = [:]
+        let pidValue = Int(pid)
+        for info in cgList {
+            guard let ownerPID = info[kCGWindowOwnerPID as String] as? Int, ownerPID == pidValue,
+                  let layer = info[kCGWindowLayer as String] as? Int, layer == 0,
+                  let windowID = info[kCGWindowNumber as String] as? UInt32
+            else { continue }
+            cgTitles[windowID] = (info[kCGWindowName as String] as? String) ?? ""
+        }
+
+        let observedIDs = Set(entry.windows.keys)
+        let missingIDs = Set(cgTitles.keys).subtracting(axIDs).subtracting(observedIDs)
+        guard !missingIDs.isEmpty else { return }
+
+        debugLog("Reconcile: pid \(pid) is missing \(missingIDs.count) window(s) from AX; hunting for them.")
+
+        for windowID in missingIDs {
+            var element = retrieveFreshWindowElement(for: windowID)
+
+            if element == nil {
+                let title = cgTitles[windowID] ?? ""
+                if !title.isEmpty, let found = retrieveFreshWindowElementByTitle(title: title) {
+                    element = found.element
+                }
+            }
+
+            if let element {
+                observeWindow(pid: pid, element: element)
+            }
+        }
+    }
+
+    /// Reads the app's AX window list off the main thread, then registers every
+    /// window and reconciles against the CG window list on the main actor.
+    func scanWindows(forPid pid: pid_t) {
+        guard pid > 0, pid != ProcessInfo.processInfo.processIdentifier else { return }
+
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let appElement = AXUIElementCreateApplication(pid)
+            AXUIElementSetMessagingTimeout(appElement, 0.75)
+
+            var windowListRef: CFTypeRef?
+            let result = AXUIElementCopyAttributeValue(appElement,
+                                                       kAXWindowsAttribute as CFString,
+                                                       &windowListRef)
+            let windowList = (windowListRef as? [AXUIElement]) ?? []
+
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.observeApp(pid: pid)
+                guard result == .success else { return }
+                self.reconcile(pid: pid, axWindows: windowList)
+                for window in windowList {
+                    self.observeWindow(pid: pid, element: window)
+                }
+            }
+        }
+    }
+
+    func scanAllRunningApplications() {
+        let ownPID = ProcessInfo.processInfo.processIdentifier
+        for app in NSWorkspace.shared.runningApplications
+        where app.processIdentifier > 0 &&
+              app.processIdentifier != ownPID &&
+              app.activationPolicy == .regular {
+            scanWindows(forPid: app.processIdentifier)
+        }
+    }
+
+    func scheduleWindowScans(forPid pid: pid_t? = nil, delays: [TimeInterval]) {
+        for delay in delays {
+            var scheduledItem: DispatchWorkItem?
+            let workItem = DispatchWorkItem { [weak self] in
+                Task { @MainActor in
+                    guard let self else { return }
+                    if let scheduledItem {
+                        self.pendingScanWorkItems.removeAll { $0 === scheduledItem }
+                    }
+                    if let pid {
+                        self.scanWindows(forPid: pid)
+                    } else {
+                        self.scanAllRunningApplications()
+                    }
+                }
+            }
+            scheduledItem = workItem
+            pendingScanWorkItems.append(workItem)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+        }
+    }
+
+    func cancelPendingScans() {
+        for workItem in pendingScanWorkItems {
+            workItem.cancel()
+        }
+        pendingScanWorkItems.removeAll()
     }
 
     func forgetWindow(pid: pid_t, windowID: UInt32) {
@@ -306,16 +453,24 @@ final class WindowObserverManager {
         }
     }
 
-    private func isStandardWindow(_ element: AXUIElement) -> Bool {
+    private enum StandardWindowCheck {
+        case standard
+        case notStandard
+        case indeterminate
+    }
+
+    private func checkStandardWindow(_ element: AXUIElement) -> StandardWindowCheck {
         var roleRef: CFTypeRef?
-        AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef)
-        guard (roleRef as? String) == kAXWindowRole else { return false }
+        let roleStatus = AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef)
+        guard roleStatus == .success else { return .indeterminate }
+        guard (roleRef as? String) == kAXWindowRole else { return .notStandard }
 
         var subroleRef: CFTypeRef?
-        AXUIElementCopyAttributeValue(element, kAXSubroleAttribute as CFString, &subroleRef)
-        guard (subroleRef as? String) == kAXStandardWindowSubrole else { return false }
+        let subroleStatus = AXUIElementCopyAttributeValue(element, kAXSubroleAttribute as CFString, &subroleRef)
+        guard subroleStatus == .success else { return .indeterminate }
+        guard (subroleRef as? String) == kAXStandardWindowSubrole else { return .notStandard }
 
-        return true
+        return .standard
     }
 
     private func notificationWasRegistered(_ result: AXError) -> Bool {
@@ -378,6 +533,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
         monitorActivations()
         GlobalHotkey.setup()
         quickSnapper.setup()
+
+        // Schedule the re-scans before the initial scan starts so their delays
+        // count from real launch time instead of from the end of that scan.
+        WindowObserverManager.shared.scheduleWindowScans(delays: [2.0, 6.0, 12.0])
         
         Thread { [self] in
             let ownPID = ProcessInfo.processInfo.processIdentifier
@@ -616,6 +775,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
         debugLog("Newly launched app is being observed: \(app)")
         Task { @MainActor in
             WindowObserverManager.shared.refreshApplication(pid: app.processIdentifier)
+            WindowObserverManager.shared.scheduleWindowScans(forPid: app.processIdentifier,
+                                                            delays: [1.0, 3.0, 7.0])
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
@@ -637,6 +798,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
         if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
             Task { @MainActor in
                 WindowObserverManager.shared.refreshApplication(pid: app.processIdentifier)
+                // Windows that AX did not list at launch surface on the CG side
+                // first; reconcile as soon as the app is brought forward.
+                WindowObserverManager.shared.scheduleWindowScans(forPid: app.processIdentifier,
+                                                                delays: [0.0])
             }
         }
 
@@ -826,6 +991,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
     }
     
     func applicationWillTerminate(_ notification: Notification) {
+        MainActor.assumeIsolated {
+            WindowObserverManager.shared.cancelPendingScans()
+        }
+
         for monitor in [mouseDownMonitor,
                         mouseDragMonitor,
                         mouseUpMonitor,
