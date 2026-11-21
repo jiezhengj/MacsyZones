@@ -1919,7 +1919,8 @@ class SnapResizer: NSWindow {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
         let resizerHostingView = NSHostingView(rootView: SnapResizerView(relatedSections: relatedSections,
-                                                                      isMouseOverResizer: isMouseOverResizer))
+                                                                      isMouseOverResizer: isMouseOverResizer,
+                                                                      mode: mode))
         resizerHostingView.sizingOptions = []
         contentView = resizerHostingView
         
@@ -2079,6 +2080,7 @@ class SnapResizer: NSWindow {
 struct SnapResizerView: View {
     var relatedSections: [RelatedSection] = []
     var isMouseOverResizer = false
+    var mode: SnapResizerMode = .vertical
     
     @State private var isHovering = false
     @State private var hoverWorkItem: DispatchWorkItem?
@@ -2099,7 +2101,11 @@ struct SnapResizerView: View {
                         
                         let workItem = DispatchWorkItem {
                             if isHovering {
-                                NSCursor.resizeUpDown.push()
+                                if mode == .vertical {
+                                    NSCursor.resizeLeftRight.push()
+                                } else {
+                                    NSCursor.resizeUpDown.push()
+                                }
                                 if !isSnapResizing {
                                     userLayouts.currentLayout.layoutWindow.show(showSwitcher: false)
                                     
