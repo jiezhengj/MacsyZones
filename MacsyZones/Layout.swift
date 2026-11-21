@@ -1040,6 +1040,9 @@ class LayoutWindow: ObservableObject {
     var sectionResizers: [SnapResizer] = []
     
     var mouseMonitor: Any?
+
+    /// 权限能力变化通知观察者（T035 补充）：windowControl 变化时幂等同步悬停监视器。
+    var permissionObserver: Any?
     var snapResizerProximityThreshold: CGFloat { appSettings.snapResizeThreshold }
     
     var activeSnapResizers: [String: SnapResizer] = [:]
@@ -1121,18 +1124,55 @@ class LayoutWindow: ObservableObject {
         editorBarWindow.orderOut(nil)
         
         // T034：mouseMoved 属鼠标类事件，绑 windowControl——对应能力 == .denied 时不安装
-        // （unknown 也安装，FR-013）；卸载由 WindowObserver 生命周期与 T035 状态迁移处理。
-        // 本方法为非隔离上下文，用 currentStatus(of:) 读取跨线程镜像。
+        // （unknown 也安装，FR-013）；本方法为非隔离上下文，用 currentStatus(of:) 读取跨线程镜像。
         if PermissionCenter.currentStatus(of: .windowControl) != .denied {
             mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
                 self?.handleMouseMoved(event: event)
             }
         }
+
+        // T035 补充：订阅权限能力变化通知，让悬停监视器随 windowControl 状态自愈
+        // （授权 granted → 未装则补装；撤销 denied → 已装则卸载）。多个实例各自幂等同步。
+        // object 传 nil：本通知由 PermissionCenter 主线程发出且仅此来源，非隔离上下文
+        // 不直接触碰 MainActor 隔离的 `shared`。
+        permissionObserver = NotificationCenter.default.addObserver(
+            forName: .permissionCapabilityDidChange,
+            object: nil,
+            queue: nil
+        ) { [weak self] note in
+            guard
+                let self,
+                let capability = note.userInfo?[PermissionChangeUserInfoKey.capability] as? PermissionCapability,
+                capability == .windowControl
+            else { return }
+            // NSEvent.add/removeMonitor 须在主线程执行；通知在主线程发出，这里再落回主线程。
+            Task { @MainActor in
+                self.syncMouseMonitor()
+            }
+        }
     }
-    
+
+    /// 幂等同步悬停 mouseMoved 监视器与 windowControl 状态（T035 补充，主线程调用）。
+    @MainActor
+    func syncMouseMonitor() {
+        if PermissionCenter.currentStatus(of: .windowControl) == .denied {
+            if let monitor = mouseMonitor {
+                NSEvent.removeMonitor(monitor)
+                mouseMonitor = nil
+            }
+        } else if mouseMonitor == nil {
+            mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
+                self?.handleMouseMoved(event: event)
+            }
+        }
+    }
+
     deinit {
         if let monitor = mouseMonitor {
             NSEvent.removeMonitor(monitor)
+        }
+        if let observer = permissionObserver {
+            NotificationCenter.default.removeObserver(observer)
         }
     }
     

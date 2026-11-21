@@ -160,6 +160,18 @@ enum PermissionRules {
 
 // MARK: - 跨线程状态镜像
 
+/// 权限能力状态真实变化通知（T035 补充）：多个 UI 组件实例按此各自幂等同步。
+extension Notification.Name {
+    static let permissionCapabilityDidChange = Notification.Name("MeowingCat.MacsyZones.permissionCapabilityDidChange")
+}
+
+/// 通知 userInfo 键（统一常量，避免裸字符串散落各处）。
+enum PermissionChangeUserInfoKey {
+    static let capability = "capability"
+    static let oldStatus = "oldStatus"
+    static let newStatus = "newStatus"
+}
+
 /// 文件级状态镜像：主线程 finishBatch 写入，非隔离上下文（后台监视器回调、
 /// Layout 的 mouseMoved 等）同步读取；NSLock 保护，避免触碰 MainActor 隔离状态。
 private enum PermissionStatusMirror {
@@ -687,6 +699,17 @@ final class PermissionCenter: ObservableObject {
 
         if changed {
             onStatusChange?(capability, previousStatus ?? newStatus, newStatus)
+            // T035 补充：除 onStatusChange 外再广播一次通知，供多个 UI 组件实例
+            // （如多个 LayoutWindow）各自幂等自愈（R13）。
+            NotificationCenter.default.post(
+                name: .permissionCapabilityDidChange,
+                object: self,
+                userInfo: [
+                    PermissionChangeUserInfoKey.capability: capability.rawValue,
+                    PermissionChangeUserInfoKey.oldStatus: (previousStatus ?? newStatus).rawValue,
+                    PermissionChangeUserInfoKey.newStatus: newStatus.rawValue,
+                ]
+            )
         }
         return state
     }

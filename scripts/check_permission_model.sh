@@ -104,6 +104,13 @@ else
     grep_or_fail "$pg" "System & App Protection Override" "文案应含 System & App Protection Override"
     grep_or_fail "$pg" "Device Control and Data Access" "文案应含 Device Control and Data Access"
     grep_or_fail "$pg" "本 app 可能不在无障碍列表中" "应包含「未在列表属正常」提示语"
+    # T035 补充断言：Layout 悬停监视器随 windowControl 状态自愈（通知驱动）。
+    lw="$source_root/MacsyZones/Layout.swift"
+    grep_or_fail "$pc" "permissionCapabilityDidChange" "PermissionCenter.swift 应定义/广播 permissionCapabilityDidChange 通知"
+    grep_or_fail "$lw" "addObserver" "Layout.swift 应注册权限变化通知观察者"
+    grep_or_fail "$lw" "permissionCapabilityDidChange" "Layout.swift 应订阅 permissionCapabilityDidChange"
+    grep_or_fail "$lw" "syncMouseMonitor" "Layout.swift 应有幂等 syncMouseMonitor()"
+    grep_or_fail "$lw" "removeObserver" "Layout.swift deinit 应移除通知观察者"
     echo "PASS: 权限模型断言通过（${local_checks} assertions，source-grep 模式）"
 fi
 
