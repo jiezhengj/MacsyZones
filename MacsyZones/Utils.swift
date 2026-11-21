@@ -13,6 +13,33 @@
 import Foundation
 import SwiftUI
 import AppKit
+import os
+
+// 权限子系统专用日志（R6）：Release 构建也可见（Logger 不受 #if DEBUG 限制），
+// 固定字段 capability / status / probe / target / error / latencyMs / trigger，
+// 供 permission-smoke 冒烟脚本与诊断复核按子系统过滤。
+private let permissionLog = Logger(subsystem: "MeowingCat.MacsyZones", category: "permissions")
+
+/// 记录一条权限探针/汇总日志。target 含 bundle id 与 app 路径，按 R6 用 .private；
+/// 其余字段为非敏感枚举值与数字，用 .public 便于 log stream / log show 直接阅读。
+func permissionLogRecord(
+    capability: String,
+    id: String,
+    target: String,
+    status: String,
+    axError: Int?,
+    latencyMs: Int,
+    trigger: String,
+    error: String? = nil
+) {
+    var axErrorText = "nil"
+    if let axError { axErrorText = String(axError) }
+    var errorText = "nil"
+    if let error, !error.isEmpty { errorText = error }
+    permissionLog.log(
+        "capability=\(capability, privacy: .public) probe=\(id, privacy: .public) target=\(target, privacy: .private) status=\(status, privacy: .public) axError=\(axErrorText, privacy: .public) latencyMs=\(latencyMs, privacy: .public) trigger=\(trigger, privacy: .public) error=\(errorText, privacy: .public)"
+    )
+}
 
 func debugLog(_ message: String, file: String = #file, line: Int = #line) {
     #if DEBUG
