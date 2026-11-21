@@ -137,6 +137,16 @@
 - 场景 B/E（授权后恢复、per-target）、场景 C（运行期撤销）、场景 G（多次登录）、场景 I（登录项）、场景 K（27.0–27.2 旧形态）、场景 D（27.2→27.3 升级）：本机两项能力均为未授权态（无法做需要 TCC 授权的 GUI 流程）、本机已是 27.3（无法回退）、自动化注销/重登会中断会话。每项均已在 `quickstart.md` 标注「未实机验证」+ 原因 + 替代证据（真实函数断言 / 代码路径编译与日志验证 / SMAppService 实时判定）。
 - 场景 A/F/H 的目视部分（面板文案、深链落点、`isTranslocated=true` 分支）留待人工确认。
 
+### 授权后补验与收敛修复（2026-11-22，T004 之后追加记录）
+
+用户实际授权后（系统设置 → System & App Protection Override → `+` 添加 `/Applications/MacsyZones.app`）在授权态完成场景 B 的验证，并因此发现一处**实现缺陷**：
+
+- 缺陷：granted 状态启动仍会弹出一次权限引导面板。根因是发布顺序——`PermissionCenter` 先置 `hasCompletedFirstCheck = true` 再发布 `snapshot`，App 侧 `combineLatest` 先收到 `(nil, true)`，`snapshot?.overall != .granted` 对 nil 成立而被判成未授权。
+- 修复（3 处 + 2 条断言）：①`PermissionCenter` 先发快照、再置首轮标记；②`App.swift` 门控改 `guard firstCheckDone, let snapshot else { return }`；③状态转 granted 时自动收起已打开的引导面板（面板开着时授权不必重启）；④`scripts/check_permission_model.sh` 新增不变量 ④（快照行号必须早于首轮标记）与 ⑤（App 侧必须有快照解包守卫），并用反例副本实测两条断言会 FAIL。
+- 复测：同一授权态下 granted 首启 10 秒内该进程零窗口（无引导面板/降级提示）、无 `probe=degrade`、菜单栏无标记、进程稳定；tccd 记录 `kTCCServiceAccessibility ... Allowed (System Set)`。
+- 环境事实（写入 `quickstart.md` 场景 B 与 `AGENTS.md` 排障段）：直接 exec 二进制或经 `launchctl`/LaunchAgent 以二进制为 `Program` 启动时，TCC 责任进程不是 app 自身 → 探针全部 `-25211`；只有 `open -a`/Finder/Dock 启动才读到已授予的权限。这是排障时最容易误判的一条。
+- 用户额外裁定：验证产物不再使用 `MacsyZones-dbg.app` 之类的并行命名，改为 `scripts/build-permission-artifact.sh` 就地替换 `/Applications/MacsyZones.app`（提交 `003b684`），以免 TCC 里出现多条互不相干的记录、也免去事后清理。
+
 ### 章程与文档复核结论（T045）
 
 - 无新增配置字段（`MacsyZones/Settings.swift:15` `AppSettingsData` 在本 feature diff 中 0 新增行）。

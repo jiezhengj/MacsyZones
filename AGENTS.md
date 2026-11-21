@@ -159,6 +159,7 @@ macOS 27 把原来的「辅助功能」拆成两个面板：**系统与应用保
 - **按可执行文件授权是常态**：新系统可能按 `.app` 与 `Contents/MacOS/<binary>` 分别记账，只授一层会出现「设置里明明开着却不生效」。怀疑这一步时，把 app 和它的可执行文件都加进去，再重启 app。
 - **自动化 GUI 操作的前置条件**：在本机用 `osascript` 驱动「系统设置」或跑 `agent-desktop` 需要**宿主 app**（Terminal、iTerm、DeepSeek Harness 等）本身有辅助功能授权，否则报 `-1719 不允许辅助访问` 或 `accessibility.state = denied`。`sudo` 非交互不可用，读不了系统 TCC 库，不要在这条路上浪费时间。
 - **先用项目自带的诊断，再开 GUI**：`bash scripts/check_permission_model.sh`（纯静态，50 条断言 + `#available` 计数）、`bash scripts/permission-smoke.sh`（日志、进程、探针耗时）、`/Applications/MacsyZones.app`（`scripts/build-permission-artifact.sh` 构建并就地替换的正式版）。运行期日志用 `log stream --predicate 'subsystem == "MeowingCat.MacsyZones" AND category == "permissions"'`，字段为 `capability/probe/target/status/axError/latencyMs/trigger`。
+- **必须经 LaunchServices 启动才认授权**：用 `open -a /Applications/MacsyZones.app`、Finder 或 Dock 启动，TCC 的责任进程才是 app 自身；直接 exec `Contents/MacOS/MacsyZones`、或用 `launchctl`/LaunchAgent 把二进制当 `Program` 启动，责任进程会落到父进程或 launchd 上下文，探针一律 `-25211` 被判 denied。用命令行验证权限前先确认启动方式，否则会把「已授权」误判成「没授权」。
 - **登录后短时误判是已知系统行为**：登录风暴期 `tccd` 可能因 fd 耗尽对已授权服务返回 denied（社区已报 FB24757092）。本项目用「距进程启动 60 秒内进入可疑态、不弹引导」宽限来吸收，排障时看到 `trigger=launch` 的 denied 先等 60 秒再看，别急着判代码有 bug。
 - **报告格式**：说明是哪个面板、哪个 app、哪个可执行文件、`tccutil`/日志里看到的服务名与时间戳；没有实机复现就写明「未实机验证」，不要用「应该没问题」代替结论。
 

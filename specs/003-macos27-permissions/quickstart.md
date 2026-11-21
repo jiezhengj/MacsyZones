@@ -101,6 +101,14 @@ bash scripts/permission-smoke.sh
 - 日志出现 `status=granted trigger=activate`（或 `manual`）。
 - 拖动窗口吸附功能立即可用（拖一个窗口到屏幕边缘，出现分区高亮）。
 
+实测记录（2026-11-22 00:16–00:22，macOS 27.3 Build 26C5047e，**已授权态**：用户手动在「System & App Protection Override」点 `+` 加入 `/Applications/MacsyZones.app` 并允许）：
+
+- 授权生效后不重启也可用：下一次 `open -a /Applications/MacsyZones.app` 的首轮 `trigger=launch` 即为 `capability=windowControl status=granted`（frontmost/finder `axError=0`、`inputMonitoring` 同样 granted、`eventPosting=notRequired`），tccd 侧可见 `ReqResult(Auth Right: Allowed (System Set))`——即「已授予权限即时生效」成立。
+- **本场景首测暴露一个真实缺陷并已修复**：granted 状态启动仍会弹一次权限引导面板（420×700）。根因是发布顺序——`PermissionCenter` 先置 `hasCompletedFirstCheck = true`、再发布 `snapshot`，于是 App 侧 `combineLatest($snapshot, $hasCompletedFirstCheck)` 先收到 `(nil, true)`，`snapshot?.overall != .granted` 对 `nil` 成立 → 误判未授权。修复三处：①`PermissionCenter` 改为「先发快照、再置首轮完成标记」；②`App.swift` 门控改为 `guard firstCheckDone, let snapshot else { return }`，禁止把 nil 当未授权；③状态转为 granted 时自动收起已打开的引导面板（用户在面板开着时完成授权不再需要重启）。同时在 `check_permission_model.sh` 增加不变量 ④（快照行号必须早于首轮标记行号）与 ⑤（App 侧必须有快照解包守卫），并用反例副本实测两条断言会 FAIL。
+- 修复后复测（同一授权态）：granted 启动 10 秒内该进程**零窗口**（`CGWindowListCopyWindowInfo` 按 pid 过滤为空，即无引导面板、无降级提示），无 `probe=degrade` 记录，菜单栏无红/黄点；进程稳定、无 crash。
+- 环境事实（排错必读）：**直接 exec 二进制**（`/Applications/MacsyZones.app/Contents/MacOS/MacsyZones`、或 `launchctl submit`/LaunchAgent `Program` 指向二进制）会把 TCC 责任进程记到父进程/launchd 上下文，探针全部 `axError=-25211`、被判 denied；只有经 LaunchServices 的 `open -a`（或用户从 Finder/Dock 启动）才是 app 自身身份、能读到授权。本场景与场景 A 的所有 granted/denied 结论都以 `open -a` 启动为准。
+- 留待人工：真实拖拽吸附（拖窗口到边缘看分区高亮）；运行期撤销（场景 C 的前提）。
+
 ### 场景 C：运行中撤销权限（🔑）
 
 1. 场景 B 之后（进程已运行超过 60 秒），回到系统设置关闭 MacsyZones 的授权。
@@ -217,8 +225,8 @@ top -pid "$PID" -l 5 -stats pid,cpu | tail -6
 
 | 场景 | 状态 | 证据 |
 | --- | --- | --- |
-| A 未授权启动 | 自动化 + 目视完成 | 非模态引导面板真实上屏（420×700，标题与 27.3 双面板 4 步文案已逐字核对）、菜单栏红色状态点、首轮全 denied、5s 轮询、探针 <100ms、不崩溃、只提示一次；仅「打开系统设置」的落点未代点 |
-| B 授权后启动 | 机制已实现，恢复分支未实机验证 | 首轮门控 + 5s 轮询 + 硬触发接线编译通过；需已授权机器目视 |
+| A 未授权启动 | 自动化 + 目视完成 | 非模态引导面板真实上屏（420×700，标题与 27.3 双面板 4 步文案已逐字核对）、菜单栏红色状态点、首轮全 denied、5s 轮询、探针 <100ms、不崩溃、只提示一次；深链落点已实测落到 `System & App Protection Override`（2026-11-22） |
+| B 授权后启动 | **已完成**（2026-11-22 授权态实测） | granted 首启不弹引导（修复 nil 快照误判后复测零窗口）、无降级提示、tccd 记录 `Allowed (System Set)`；拖拽吸附的可视行为留待人工 |
 | C 运行期撤销 | 机制已实现，未实机验证 | 30s 轮询 + 即时复核代码路径与断言覆盖 |
 | D 升级保持 | 未实机验证 | 本机已是 27.3；双形态真实函数断言 50 assertions |
 | E per-target | 机制已实现，未实机验证 | partialTargets 判定 + 诊断面板标注代码就绪；需真授权复现 |
@@ -229,7 +237,7 @@ top -pid "$PID" -l 5 -stats pid,cpu | tail -6
 | J 性能采样 | 自动化完成 | 主线程栈无探针帧；闲置 CPU 0.0–0.7%（≤2%），探针批次峰值 3.1% transient；内存峰值 29.5M |
 | K 旧形态 27.0–27.2 | 未实机验证 | 无旧版机器；legacyAccessibility/privacyRoot 真实函数断言覆盖 |
 
-**为什么 B/C/E/F1/G/I/K 仍挂在「未实机验证」**（2026-11-21 复查，环境事实而非偷懒）：这些场景都要「MacsyZones 真正拿到授权」才能观察 granted 分支。本机 macOS 27.3 下授权只能在「系统设置 → 隐私与安全性」里由人把 toggle 打开（`kTCCServiceAccessibility` 不允许程序主动弹框，tccd 日志 `does not allow prompting; returning preflight_unknown`），而改动 toggle 需要 Touch ID/密码。代理侧能做的替代手段都被系统挡住：`osascript` UI 脚本报 `-1719 不允许辅助访问`、`agent-desktop permissions` 报 `accessibility: denied`、`sudo -n` 不可用、TCC 库被 SIP 保护不可读。因此这些行必须等一次人工授权（约 30 秒）后才能补验；在此之前，它们的置信度由 `check_permission_model.sh` 的 50 条真实函数断言 + 源码核对承担，不冒充实机结论。
+**为什么 C/E/F1/G/I/K 仍挂在「未实机验证」**（2026-11-21 复查、2026-11-22 更新：B 已在授权态完成；以下为环境事实而非偷懒）：这些场景都要「MacsyZones 真正拿到授权」才能观察 granted 分支。本机 macOS 27.3 下授权只能在「系统设置 → 隐私与安全性」里由人把 toggle 打开（`kTCCServiceAccessibility` 不允许程序主动弹框，tccd 日志 `does not allow prompting; returning preflight_unknown`），而改动 toggle 需要 Touch ID/密码。代理侧能做的替代手段都被系统挡住：`osascript` UI 脚本报 `-1719 不允许辅助访问`、`agent-desktop permissions` 报 `accessibility: denied`、`sudo -n` 不可用、TCC 库被 SIP 保护不可读。因此 C/E/F1/G/I/K 仍需人工操作（撤销/新增授权、注销重登、旧版本机器）配合才能补验；B 已于 2026-11-22 由用户授权后完成（见场景 B 实测记录，并因此发现并修复了「nil 快照误弹引导」缺陷）。C/E/F1 的残余分支同样需要临时改授权状态；在此之前，它们的置信度由 `check_permission_model.sh` 的真实函数断言（50 条 + 不变量 ④⑤）+ 源码核对承担，不冒充实机结论。
 
 构建与签名：Debug（scripts/build-debug.sh）与 Release（xcodebuild -configuration Release）均 BUILD SUCCEEDED，`warning:` 计数 = 基线（1，appintentsmetadataprocessor 工具提示），verify-signing 均 PASS；断言脚本 `check_permission_model.sh` MODE=extract PASS 50 assertions、不变量 grep 9/9；冒烟 `permission-smoke.sh` PASS（29 条权限记录、最慢探针 90ms、launch 差 0s）；报告校验 PASS: 报告结构符合契约。
 
