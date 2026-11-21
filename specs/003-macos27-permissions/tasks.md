@@ -88,7 +88,7 @@
 **目的**：跨故事验证、文档回填与切片提交。
 
 - [ ] T043 构建矩阵双 PASS：`bash scripts/build-debug.sh`（Debug + `verify-signing.sh`）与 `xcodebuild -project MacsyZones.xcodeproj -scheme MacsyZones -configuration Release -derivedDataPath /tmp/m003-release CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=C7C84AAA3B67FACEA73042570A0BA2FC3D19E613 DEVELOPMENT_TEAM=74FR87HYTH clean build` + `bash scripts/verify-signing.sh /tmp/m003-release/Build/Products/Release/MacsyZones.app`；`warning:` 计数为 0
-- [ ] T044 执行 `quickstart.md` 场景 A–J 全量手动矩阵，逐项回填实测记录表（无法自动化的项注明原因与替代证据，不得留空）
+- [ ] T044 执行 `quickstart.md` 场景 A–K 全量手动矩阵，逐项回填实测记录表（无法自动化的项注明原因与替代证据，不得留空）
 - [ ] T045 章程与文档复核：无新增配置字段（章程五）、三个新增源文件无 `#available`（额外约束）、探针在 `.utility` 队列且结果回主线程（主线程纪律）、诊断视图只在设置窗口打开时构建（惰性物化）、评估是否需要在 `AGENTS.md` 增「权限排障」段落
 - [ ] T046 分切片提交（准备与基础 / US1 / US2 / US3 / US4 / US5 / 文档）并在本文件末尾写「实现记录」：提交哈希、验证结果、与计划的偏差、未完成项与原因
 

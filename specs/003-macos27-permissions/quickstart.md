@@ -104,7 +104,7 @@ bash scripts/permission-smoke.sh
 
 预期：
 
-- **没有 60 秒静默期**：运行期撤销属确定性操作，10 秒内识别并降级为「暂停吸附」，横幅/诊断显示未授权。机制是「交互触发即时复核（拖动触发 AX 失败 → `reportAXFailure`，或点菜单/诊断面板）+ 无交互时 5 秒轮询兜底」，不是靠 `granted` 期间那 30 秒轮询（`research.md` R4、`data-model.md` 状态机）。
+- **没有 60 秒静默期**：运行期撤销属确定性操作，10 秒内识别并降级为「暂停吸附」，横幅/诊断显示未授权。机制是「交互触发即时复核（拖动触发 AX 失败 → `reportAXFailure`，或点菜单/诊断面板）；无交互时，首次识别只能靠 `granted` 期间那条 30 秒轮询（最坏 30 秒），识别失败后转 5 秒轮询 ×24 次兜底」（`research.md` R4、`data-model.md` 状态机）。
 - 应用不崩溃；再次授权后自动恢复（回到场景 B 的预期）。
 - 反向验证宽限只用于登录期：杀掉进程后立刻在授权仍有效的情况下重启，前 60 秒内即使探针短暂 `denied` 也不得出现未授权提示（结合场景 G 一起看）。
 
@@ -166,7 +166,7 @@ top -pid "$PID" -l 5 -stats pid,cpu | tail -6
 
 ### 场景 K：27.0–27.2 旧形态手工验证（SC-006）
 
-**前置**：需要一台仍在 27.0–27.2 的机器（本机已是 27.3，无法降级）。若没有可用机器，本场景**必须标注「未实机验证」**，不得写成已验证（与场景 D 的升级路径同样处理，见 `tasks.md` T039）。
+**前置**：需要一台仍在 27.0–27.2 的机器（本机已是 27.3，无法降级）。若没有可用机器，本场景**必须标注「未实机验证」**，不得写成已验证（标注方式同场景 D，见 `tasks.md` T042；T039 只负责场景 D 的升级路径标注）。
 
 1. 在同一份构建产物上确认引导文案指向 **Device Control and Data Access**（不是 27.3 的 `System & App Protection Override`）。
 2. 点击引导按钮，确认打开的是 `Privacy_Accessibility` 面板（`x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility`），且授权后 `windowControl` 变为 `granted`。
