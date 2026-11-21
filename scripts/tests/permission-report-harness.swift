@@ -2,7 +2,7 @@
 // 写 /tmp/m003-report.json，供 quickstart.md「五、诊断报告」的逐字段校验脚本消费。
 // 说明：本桩在命令行运行，Bundle.main 不指向 App bundle，makeAppInfo() 的
 // bundleID/teamID/version 会取到缺省值。为了与真实报告同源又不伪造数据，
-// App 段从验证副本（~/Applications/MacsyZones-dbg.app）的 Info.plist 实读
+// App 段从正式版副本（/Applications/MacsyZones.app）的 Info.plist 实读
 // 版本/Build/路径，bundleID 取该 Info.plist 的 CFBundleIdentifier，teamID 用
 // AGENTS.md 固定的签名 Team 常量（运行中的 App 由 SecCode 从签名读取同一值）。
 // System 段仍直接调用 PermissionCenter.makeSystemInfo()（与真实报告同源）。
@@ -15,7 +15,7 @@ func m003MakeHarnessReport() {
     formatter.formatOptions = [.withInternetDateTime]
     let now = formatter.string(from: Date())
 
-    let artifactPath = NSString(string: "~/Applications/MacsyZones-dbg.app").expandingTildeInPath
+    let artifactPath = NSString(string: "/Applications/MacsyZones.app").expandingTildeInPath
     let bundle = Bundle(url: URL(fileURLWithPath: artifactPath))
     let info = bundle?.infoDictionary ?? [:]
     let app = AppInfo(

@@ -172,7 +172,7 @@
 
 ## R14：可反复启动的构建产物
 
-**决策**：新增 `scripts/build-permission-artifact.sh`：`xcodebuild -project MacsyZones.xcodeproj -scheme MacsyZones -configuration Debug -derivedDataPath /tmp/m003-debug CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=C7C84AAA3B67FACEA73042570A0BA2FC3D19E613 DEVELOPMENT_TEAM=74FR87HYTH build` → `rm -rf ~/Applications/MacsyZones-dbg.app` → `cp -R /tmp/m003-debug/Build/Products/Debug/MacsyZones.app ~/Applications/MacsyZones-dbg.app` → `bash scripts/verify-signing.sh ~/Applications/MacsyZones-dbg.app`。
+**决策**：新增 `scripts/build-permission-artifact.sh`：`xcodebuild -project MacsyZones.xcodeproj -scheme MacsyZones -configuration Debug -derivedDataPath /tmp/m003-debug CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=C7C84AAA3B67FACEA73042570A0BA2FC3D19E613 DEVELOPMENT_TEAM=74FR87HYTH build` → `rm -rf /Applications/MacsyZones.app` → `cp -R /tmp/m003-debug/Build/Products/Debug/MacsyZones.app /Applications/MacsyZones.app` → `bash scripts/verify-signing.sh /Applications/MacsyZones.app`。
 
 **理由**：`scripts/build-debug.sh` 末尾 `trap cleanup EXIT` 会删除派生数据，跑完没有可启动产物；而 TCC 授权按「已签名 app 的固定路径」记录，反复用 `/tmp` 路径或每次重新构建都会让授权记录失效。冒烟脚本与手动矩阵都需要一个路径稳定、签名正式的副本。**注意**：重新构建会改变二进制哈希，授权可能失效，手动矩阵前应重新执行本轮构建并在系统设置里确认条目。
 

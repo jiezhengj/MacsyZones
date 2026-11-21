@@ -8,11 +8,11 @@
 
 # 阶段 1：准备
 
-**目的**：建立可对比的基线，并产出能反复启动的验证副本（`scripts/build-debug.sh` 会删掉派生数据，不能用于需要多次启动的验证）。
+**目的**：建立可对比的基线，并产出能反复启动的正式版副本（`scripts/build-debug.sh` 会删掉派生数据，不能用于需要多次启动的验证）。
 
 - [x] T001 确认起点：`git status --short` 为空、当前分支为 `custom`；跑 `bash scripts/build-debug.sh`，记录 `warning:` 计数与末 20 行到 `/tmp/m003-warnings-baseline.txt`
-- [x] T002 新建 `scripts/build-permission-artifact.sh`（`research.md` R14）：`xcodebuild -project MacsyZones.xcodeproj -scheme MacsyZones -configuration Debug -derivedDataPath /tmp/m003-debug CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=C7C84AAA3B67FACEA73042570A0BA2FC3D19E613 DEVELOPMENT_TEAM=74FR87HYTH build` → `rm -rf ~/Applications/MacsyZones-dbg.app` → `cp -R /tmp/m003-debug/Build/Products/Debug/MacsyZones.app ~/Applications/MacsyZones-dbg.app` → `bash scripts/verify-signing.sh ~/Applications/MacsyZones-dbg.app` → 打印 `PASS: 验证副本已生成（~/Applications/MacsyZones-dbg.app）`；执行一次确认产物可启动
-- [x] T003 [P] 抓现有权限行为基线：启动 `~/Applications/MacsyZones-dbg.app`，`log show --last 5m --predicate 'process == "tccd" AND eventMessage CONTAINS "MeowingCat.MacsyZones"'` 与 `log show --last 5m --predicate 'subsystem == "MeowingCat.MacsyZones"'` 存 `/tmp/m003-permission-baseline.log`，并记下当前是否弹模态框、是否要求重启（后续回归对比用）
+- [x] T002 新建 `scripts/build-permission-artifact.sh`（`research.md` R14）：`xcodebuild -project MacsyZones.xcodeproj -scheme MacsyZones -configuration Debug -derivedDataPath /tmp/m003-debug CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=C7C84AAA3B67FACEA73042570A0BA2FC3D19E613 DEVELOPMENT_TEAM=74FR87HYTH build` → `rm -rf /Applications/MacsyZones.app` → `cp -R /tmp/m003-debug/Build/Products/Debug/MacsyZones.app /Applications/MacsyZones.app` → `bash scripts/verify-signing.sh /Applications/MacsyZones.app` → 打印 `PASS: 正式版副本已生成（/Applications/MacsyZones.app）`；执行一次确认产物可启动
+- [x] T003 [P] 抓现有权限行为基线：启动 `/Applications/MacsyZones.app`，`log show --last 5m --predicate 'process == "tccd" AND eventMessage CONTAINS "MeowingCat.MacsyZones"'` 与 `log show --last 5m --predicate 'subsystem == "MeowingCat.MacsyZones"'` 存 `/tmp/m003-permission-baseline.log`，并记下当前是否弹模态框、是否要求重启（后续回归对比用）
 - [x] T004 [P] 记录边界基线到 `/tmp/m003-boundary-baseline.txt`：`grep -rn "#available" MacsyZones --include=*.swift`（当前 9 处：SettingsView.swift:915/941/950、Onboarding.swift:263、Layout.swift:56/916/937/968/985）、`grep -rn "hasAccessibilityPermission" MacsyZones`（当前 4 处：`App.swift:38/627/742/746`）、`grep -rn "AXIsProcessTrustedWithOptions" MacsyZones`（当前 1 处：`App.swift:742`）、`grep -rn "checkAccessibilityPermission\|requestAccessibilityPermissions" MacsyZones`（定义 `App.swift:740`/`:745`，调用 `:554`/`:555`）、`ls scripts/`（当前 5 个脚本 + `scripts/tests/` 仅 002 的 lazy 文件）
 
 # 阶段 2：基础（阻塞所有用户故事）
@@ -38,7 +38,7 @@
 - [x] T016 [US1] 在 `MacsyZones/Info.swift` 把 `AccessibilityDialog` 改为非模态：去掉 `.screenSaver` 级别（`:197`、`:228`）、去掉 `onCancel` 闭包里的 `exit(0)`（`:221-224`，`exit(0)` 在 `:223`）、移除 `show()` 里的 `NSApplication.shared.activate(ignoringOtherApps: true)`（`:247-251`），保留 `orderFrontRegardless()` 但不抢焦点（FR-004/FR-010）
 - [x] T017 [US1] 改造 `MacsyZones/App.swift`：删除 `hasAccessibilityPermission`（`:38`）、`checkAccessibilityPermission()`（`:740`）、`requestAccessibilityPermissions()`（`:745`）及其调用（`:554`/`:555`），改为 `PermissionCenter.shared.start()`；`showAccessibilityPermissionPopover()`（`:753`）改为非模态引导入口；用 `grep -rn "hasAccessibilityPermission" MacsyZones` 确认无残留
 - [x] T018 [US1] 在 `MacsyZones/App.swift` 接线引导展示：**必须** `PermissionCenter.shared.hasCompletedFirstCheck == true` 且 `snapshot.overall != .granted` 才展示；首轮探测完成前不显示任何未授权提示（避免已授权用户每次启动闪引导）
-- [x] T019 [US1] 构建并执行 `quickstart.md` 场景 A：`bash scripts/build-permission-artifact.sh` → 撤销授权 → 启动 `~/Applications/MacsyZones-dbg.app`，记录文案、按钮落点、日志、是否崩溃
+- [x] T019 [US1] 构建并执行 `quickstart.md` 场景 A：`bash scripts/build-permission-artifact.sh` → 撤销授权 → 启动 `/Applications/MacsyZones.app`，记录文案、按钮落点、日志、是否崩溃
 - [x] T020 [US1] 把实测结果回填 `specs/003-macos27-permissions/quickstart.md`（场景 A 实测列）与 `research.md` R12 第 2 条：本 app 实际出现在哪个面板、`Privacy_Accessibility`/`Privacy_AccessibilityApps` 深链是否落点正确；若实际不符，同步修正 `contracts/guidance-targets.md`
 
 # 阶段 4：US2 权限状态持续复核（P1）
@@ -60,7 +60,7 @@
 - [x] T028 [US3] 新建 `MacsyZones/PermissionDiagnosticsView.swift`：展示各能力状态、最近检测时间、探针明细（`id`/`target`/`axError`/`latencyMs`）、`AppInfo`（含 `path`/`isTranslocated`/`isLoginItem`）与 `SystemInfo`，底部「重新检测」「复制报告」（FR-016）
 - [x] T029 [US3] 在 `MacsyZones/SettingsView.swift` 的 `AdvancedSettingsSection`（`:798`）之后插入 `PermissionDiagnosticsSection`（依赖 T024 已改过该文件，顺序固定）
 - [x] T030 [US3] 在 `MacsyZones/PermissionCenter.swift` 实现 `PermissionDiagnosticReport`（`Codable`，`schemaVersion = 1`）并复制到 `NSPasteboard`：字段严格按 `data-model.md`「DiagnosticReport」与 `contracts/permission-report.schema.json` 的 `required` 列表（`schemaVersion`/`generatedAt`/`app`/`system`/`capabilities`/`notes`），`capabilities[].probes[]` 逐条带 `id`/`target`/`status`/`latencyMs`（`axError` 可空）；不采集窗口标题与个人数据（FR-017/FR-018）
-- [x] T031 [US3] 新建 `scripts/permission-smoke.sh`：确保 `~/Applications/MacsyZones-dbg.app` 存在（不存在则先调 `scripts/build-permission-artifact.sh`）→ 启动 20 秒 → `log show --last 1m --predicate 'subsystem == "MeowingCat.MacsyZones" AND category == "permissions"'` → 断言至少一条含 `capability=windowControl`、`status=`、`trigger=launch`、`latencyMs=` 且 `latencyMs < 1000` 的记录，且**首条 `trigger=launch` 记录与进程启动时间戳相差 ≤ 10 秒**（契约 clause），进程存活、无 `fatal error` → 结束进程；输出 `PASS: 权限日志与进程状态正常（<N> 条权限记录）`（契约见 `contracts/guidance-targets.md`「演示/冒烟契约」）
+- [x] T031 [US3] 新建 `scripts/permission-smoke.sh`：确保 `/Applications/MacsyZones.app` 存在（不存在则先调 `scripts/build-permission-artifact.sh`）→ 启动 20 秒 → `log show --last 1m --predicate 'subsystem == "MeowingCat.MacsyZones" AND category == "permissions"'` → 断言至少一条含 `capability=windowControl`、`status=`、`trigger=launch`、`latencyMs=` 且 `latencyMs < 1000` 的记录，且**首条 `trigger=launch` 记录与进程启动时间戳相差 ≤ 10 秒**（契约 clause），进程存活、无 `fatal error` → 结束进程；输出 `PASS: 权限日志与进程状态正常（<N> 条权限记录）`（契约见 `contracts/guidance-targets.md`「演示/冒烟契约」）
 - [x] T032 [US3] 从诊断面板复制报告，按 `quickstart.md`「五、诊断报告」的校验脚本执行，要求输出 `PASS: 报告结构符合契约`；把失败字段修正到通过为止
 - [x] T033 [US3] 执行 `quickstart.md` 场景 H（`/tmp` 运行与 translocation）：确认 `app.path`/`isTranslocated` 如实呈现、状态允许 `denied` 但面板解释清楚、不崩溃；结论回填 `quickstart.md`
 

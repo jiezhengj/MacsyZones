@@ -4,7 +4,7 @@
 
 1. 已安装 Xcode 27.2（`/Applications/Xcode.app`），`xcode-select -p` 指向它。
 2. 钥匙串里有上述开发证书（`security find-identity -v -p codesigning` 能看到 `C7C84AAA3B67FACEA73042570A0BA2FC3D19E613`）。
-3. 需要真实授权的场景，必须使用**路径固定的已签名副本** `~/Applications/MacsyZones-dbg.app`（由 `scripts/build-permission-artifact.sh` 产出）；不能直接用 `/tmp` 下的产物——TCC 按 app 身份与路径记录授权，`/tmp` 路径会按另一个条目处理，且可能触发 translocation。
+3. 需要真实授权的场景，必须使用**路径固定的已签名副本** `/Applications/MacsyZones.app`（由 `scripts/build-permission-artifact.sh` 产出）；不能直接用 `/tmp` 下的产物——TCC 按 app 身份与路径记录授权，`/tmp` 路径会按另一个条目处理，且可能触发 translocation。
 4. 每次重新构建都会改变二进制，系统设置里的旧授权条目可能失效：跑手动矩阵前先重新构建，并在面板里确认条目存在。
 5. 验证会改动系统隐私设置，请自行决定是否执行场景 C/E/F。
 
@@ -19,15 +19,15 @@ bash scripts/build-debug.sh
 
 期望输出结尾：`** BUILD SUCCEEDED **`，以及 `PASS: 正式签名 Debug 构建完成（Bundle ID: MeowingCat.MacsyZones）`；`warning:` 计数应为 0。该脚本用 `trap cleanup EXIT` 删除派生数据，**跑完没有可启动产物** —— 这是正常的，可启动副本用下一步。
 
-### 1.2 可反复启动的验证副本
+### 1.2 可反复启动的正式版副本
 
 ```bash
 bash scripts/build-permission-artifact.sh
 ```
 
-脚本行为（`research.md` R14）：`xcodebuild -configuration Debug -derivedDataPath /tmp/m003-debug` 构建 → 覆盖复制到 `~/Applications/MacsyZones-dbg.app` → `bash scripts/verify-signing.sh ~/Applications/MacsyZones-dbg.app`。
+脚本行为（`research.md` R14）：`xcodebuild -configuration Debug -derivedDataPath /tmp/m003-debug` 构建 → 覆盖复制到 `/Applications/MacsyZones.app` → `bash scripts/verify-signing.sh /Applications/MacsyZones.app`。
 
-期望输出：`BUILD SUCCEEDED`、`verify-signing.sh` 的 `PASS: 正式签名身份…均一致`、以及脚本末行 `PASS: 验证副本已生成（~/Applications/MacsyZones-dbg.app）`，且该目录存在。
+期望输出：`BUILD SUCCEEDED`、`verify-signing.sh` 的 `PASS: 正式签名身份…均一致`、以及脚本末行 `PASS: 正式版副本已生成（/Applications/MacsyZones.app）`，且该目录存在。
 
 ## 二、静态与桩断言
 
@@ -50,18 +50,18 @@ bash scripts/check_permission_model.sh
 bash scripts/permission-smoke.sh
 ```
 
-脚本行为：启动 `~/Applications/MacsyZones-dbg.app`（若不存在则先调用 `scripts/build-permission-artifact.sh`）→ 等待 20 秒 → 用 `log show` 抓 `subsystem == "MeowingCat.MacsyZones" AND category == "permissions"` → 断言至少一条含 `capability=windowControl`、`status=`、`trigger=launch`、`latencyMs=` 且 `latencyMs < 1000` 的记录、进程存活、无 `fatal error` → 结束进程。
+脚本行为：启动 `/Applications/MacsyZones.app`（若不存在则先调用 `scripts/build-permission-artifact.sh`）→ 等待 20 秒 → 用 `log show` 抓 `subsystem == "MeowingCat.MacsyZones" AND category == "permissions"` → 断言至少一条含 `capability=windowControl`、`status=`、`trigger=launch`、`latencyMs=` 且 `latencyMs < 1000` 的记录、进程存活、无 `fatal error` → 结束进程。
 
 期望输出：`PASS: 权限日志与进程状态正常（<N> 条权限记录）`。
 
 ## 四、手动验证矩阵
 
-每个场景记录三列：预期状态、实际状态、备注。带 🔑 的场景必须使用 `~/Applications/MacsyZones-dbg.app` 并在真实辅助功能授权下执行。
+每个场景记录三列：预期状态、实际状态、备注。带 🔑 的场景必须使用 `/Applications/MacsyZones.app` 并在真实辅助功能授权下执行。
 
 ### 场景 A：首次未授权启动（关键，🔑）
 
 1. 先移除授权：系统设置 → 隐私与安全性 → System & App Protection Override（或无障碍）→ 若列表中有 MacsyZones，关闭开关。
-2. 启动 `~/Applications/MacsyZones-dbg.app`。
+2. 启动 `/Applications/MacsyZones.app`。
 
 预期：
 
@@ -74,7 +74,7 @@ bash scripts/permission-smoke.sh
 
 实测记录（2026-11-21，macOS 27.3 Build 26C5047e，本机当时本 bundle 即处于未授权态，故未做撤销授权步骤、直接复现了本场景的未授权路径；自动化部分已验，🔑 人工部分见下）：
 
-- 已自动化验证（`~/Applications/MacsyZones-dbg.app`，两次启动各观察 20 秒以上）：
+- 已自动化验证（`/Applications/MacsyZones.app`，两次启动各观察 20 秒以上）：
   - 应用不崩溃、不退出：`kill`（SIGTERM）前进程稳定运行，退出后无残留。
   - 日志：首轮 `trigger=launch` 全部探针 `status=denied`（frontmost `axError=-25211`、api/preflight 同 denied），汇总 `capability=windowControl status=denied`；随后 `trigger=poll` 每 5 秒复核（与 R4 的 5s×24 一致）。
   - 探针延迟：单探针 `latencyMs` 最大 84（远小于 1000 阈值）。
@@ -146,7 +146,7 @@ bash scripts/permission-smoke.sh
 
 实测记录（2026-11-21，自动化部分完成；本机两项能力均为未授权态，F1 的「窗口控制已授权」分支与场景 B 恢复路径需 TCC 授权，留待人工）：
 
-- F2 方向（`windowControl=denied`，与 F2 预期的关闭分支一致）自动化验证：启动验证副本后进程存活、无 fatal/crash；首轮 `trigger=launch` 探针全部 `denied` 后，状态迁移日志出现且仅出现一次 `probe=degrade` 记录（「降级提示：拖动吸附与布局自动保存已暂停（只读模式），Carbon 快捷键不受影响」），证明降级路径与一次性提示生效（`/tmp/m003-scenarioF-f1.log`）。
+- F2 方向（`windowControl=denied`，与 F2 预期的关闭分支一致）自动化验证：启动正式版副本后进程存活、无 fatal/crash；首轮 `trigger=launch` 探针全部 `denied` 后，状态迁移日志出现且仅出现一次 `probe=degrade` 记录（「降级提示：拖动吸附与布局自动保存已暂停（只读模式），Carbon 快捷键不受影响」），证明降级路径与一次性提示生效（`/tmp/m003-scenarioF-f1.log`）。
 - 鼠标类监视器未安装（`windowControl == .denied` 不装）、悬停高亮路径按 `windowControl` 状态门控（`Layout.swift` `handleMouseMoved`），编译与日志证据通过；拖动/高亮的可视行为留待人工。
 - 留待人工：F1 完整分支（需 `windowControl=granted` 才能验证「缺输入监控时拖动照常」）；F2 的「重新打开后不重启恢复拖动」（需真授权一次）；场景 B 授权后的恢复时间实测（`research.md` R13 补装路径已由代码与断言覆盖，实机时间留待人工）。
 
@@ -168,7 +168,7 @@ bash scripts/permission-smoke.sh
 
 实测记录（2026-11-21，自动化部分完成，面板目视部分留待人工）：
 
-- 拷贝 `~/Applications/MacsyZones-dbg.app` → `/tmp/mz-tmp-run/MacsyZones.app` 启动：进程存活（PID 11860），`lsof` 证实可执行文件路径为 `/private/tmp/mz-tmp-run/MacsyZones.app/Contents/MacOS/MacsyZones`（无 translocation 介质层）。
+- 拷贝 `/Applications/MacsyZones.app` → `/tmp/mz-tmp-run/MacsyZones.app` 启动：进程存活（PID 11860），`lsof` 证实可执行文件路径为 `/private/tmp/mz-tmp-run/MacsyZones.app/Contents/MacOS/MacsyZones`（无 translocation 介质层）。
 - `xattr` 检查：产物无 `com.apple.quarantine`（仅 `macl`/`provenance`），故运行期 `isTranslocated` 应为 `false`——诊断面板如实显示路径而无需触发 translocation 分支（外部可复核）。
 - 30 秒内 permissions 日志 21 条、无 fatal/crash 记录；状态 `denied` 属未授权正常态。
 - 留待人工：诊断面板目视确认 `路径` 显示 `/tmp/...`、`是否从临时位置迁移运行=否`（本机无 quarantine，未覆盖 `isTranslocated=true` 分支；如需覆盖须给产物加 `com.apple.quarantine` 扩展属性后重跑）。
@@ -180,7 +180,7 @@ bash scripts/permission-smoke.sh
 
 预期：`isLoginItem=true`；登录后首轮检测不早于窗口观察就绪，且无「未知」造成的引导闪现。
 
-实测记录（2026-11-21）：**未实机验证**。原因：场景要求真登录项 + 注销重登，自动化无法在不中断会话的前提下完成；本机也未把验证副本设为登录项。已做的替代证据：① `AppInfo.isLoginItem` 由 `SMAppService.mainApp.status == .enabled` 实时判定（真实 API，无硬编码）；② 首轮探测时序由 `PermissionCenter.start()` 内 `recheck(trigger: "launch")` 与 `hasCompletedFirstCheck` 门控保证（未完成首轮不展示引导，与登录时机无关）；③ 留待用户设置登录项后目视确认诊断面板 `是否登录项=是`。
+实测记录（2026-11-21）：**未实机验证**。原因：场景要求真登录项 + 注销重登，自动化无法在不中断会话的前提下完成；本机也未把正式版副本设为登录项。已做的替代证据：① `AppInfo.isLoginItem` 由 `SMAppService.mainApp.status == .enabled` 实时判定（真实 API，无硬编码）；② 首轮探测时序由 `PermissionCenter.start()` 内 `recheck(trigger: "launch")` 与 `hasCompletedFirstCheck` 门控保证（未完成首轮不展示引导，与登录时机无关）；③ 留待用户设置登录项后目视确认诊断面板 `是否登录项=是`。
 
 ### 场景 J：性能采样（SC-005）
 
@@ -305,7 +305,7 @@ PY
 实测记录（2026-11-21，自动化）：
 
 - 「复制报告」按钮由诊断面板 GUI 触发，本机未授权会话中留待人工点击；自动化等价路径已验证：`scripts/tests/permission-report-harness.swift`（`swiftc` 编译 `PermissionCenter.swift` 后运行）调用生产端同一 `JSONEncoder`（pretty + sortedKeys）生成 `/tmp/m003-report.json`，再跑上面的 python 脚本 → `PASS: 报告结构符合契约 {'windowControl': 'denied', 'inputMonitoring': 'denied', 'eventPosting': 'notRequired'}`。
-- 说明：命令行环境 `Bundle.main` 不指向 App bundle，harness 的 App 段改从验证副本 `~/Applications/MacsyZones-dbg.app` 的 Info.plist 实读版本/Build/bundleID（与真实运行值同源）；`teamID` 使用 AGENTS.md 固定签名 Team 常量（真实运行时由 SecCode 从签名读取同一值）。
+- 说明：命令行环境 `Bundle.main` 不指向 App bundle，harness 的 App 段改从正式版副本 `/Applications/MacsyZones.app` 的 Info.plist 实读版本/Build/bundleID（与真实运行值同源）；`teamID` 使用 AGENTS.md 固定签名 Team 常量（真实运行时由 SecCode 从签名读取同一值）。
 
 ## 六、日志取证
 
@@ -325,7 +325,7 @@ log show --last 3d --predicate 'process == "tccd" AND eventMessage CONTAINS "Too
 | 现象 | 可能原因 | 处理 |
 |---|---|---|
 | 构建失败提示签名 | 证书不在钥匙串 / Xcode 版本不符 | `security find-identity -v -p codesigning` 核对 `C7C84AAA...` |
-| 冒烟脚本抓不到日志 | 启动的是 `/tmp` 下的产物、或产物未签名、或 `~/Applications/MacsyZones-dbg.app` 还是旧构建 | 重新跑 `scripts/build-permission-artifact.sh`；`codesign -dv --verbose=4 <app>` 核对 Team ID |
+| 冒烟脚本抓不到日志 | 启动的是 `/tmp` 下的产物、或产物未签名、或 `/Applications/MacsyZones.app` 还是旧构建 | 重新跑 `scripts/build-permission-artifact.sh`；`codesign -dv --verbose=4 <app>` 核对 Team ID |
 | 状态永远 `unknown` | 探针目标 app 未运行（Finder 被替换） | 打开 Finder 后点「重新检测」；诊断面板会显示 `lastError` |
 | 授权后仍 `denied` | 系统设置里改的不是同一个副本（`/tmp` vs `~/Applications`）；或 tccd 登录期抖动 | 删掉旧条目重新添加；登录后 60 秒内属宽限期，等待或「重新检测」 |
 | 面板跳转落到首页 | 锚点在新系统被改名 | 按 `contracts/guidance-targets.md` 兜底文案手动导航，并记录实际锚点回填契约 |

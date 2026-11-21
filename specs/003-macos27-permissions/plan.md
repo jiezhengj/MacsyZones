@@ -18,7 +18,7 @@ macOS 27.3 把「设备控制与数据访问」拆成 **System & App Protection 
 
 **存储**： 不新增持久化。权限状态为运行时内存状态；诊断报告只写剪贴板，不落盘。不读写 TCC 数据库，不写 `AppSettings.json` 新字段（如需「不再提示」类偏好，按 `AGENTS.md`/章程五用 optional 字段 + `??` 回退，本 feature 不引入）。
 
-**测试**： 无 XCTest target（沿用 002 的三层验证）：① `bash scripts/build-debug.sh`（正式签名 Debug 构建，BUILD SUCCEEDED + `verify-signing.sh` PASS）；② 纯值逻辑用 `scripts/check_permission_model.sh` + `scripts/tests/*.swift` 桩断言（不引入 AppKit）；③ 运行期用 `scripts/permission-smoke.sh` 启动 App、按 `log show` 断言权限日志与无崩溃；该脚本依赖 `scripts/build-permission-artifact.sh` 产出的、可长期启动的 `~/Applications/MacsyZones-dbg.app`（`scripts/build-debug.sh` 的 `trap cleanup EXIT` 会删掉派生数据，不能用于需要反复启动的验证，见研究 R14）。需要真实 TCC 授权与 GUI 的行为（首次授权、撤销、升级路径）走 `quickstart.md` 的手动矩阵。
+**测试**： 无 XCTest target（沿用 002 的三层验证）：① `bash scripts/build-debug.sh`（正式签名 Debug 构建，BUILD SUCCEEDED + `verify-signing.sh` PASS）；② 纯值逻辑用 `scripts/check_permission_model.sh` + `scripts/tests/*.swift` 桩断言（不引入 AppKit）；③ 运行期用 `scripts/permission-smoke.sh` 启动 App、按 `log show` 断言权限日志与无崩溃；该脚本依赖 `scripts/build-permission-artifact.sh` 产出的、可长期启动的 `/Applications/MacsyZones.app`（`scripts/build-debug.sh` 的 `trap cleanup EXIT` 会删掉派生数据，不能用于需要反复启动的验证，见研究 R14）。需要真实 TCC 授权与 GUI 的行为（首次授权、撤销、升级路径）走 `quickstart.md` 的手动矩阵。
 
 **目标平台**： macOS 27.0+（部署目标 `MACOSX27.0`），本机 27.3（Build `26C5047e`，Apple Silicon）；需同时兼容 27.0–27.2 的旧面板形态。
 
@@ -77,7 +77,7 @@ MacsyZones/
 └── Utils.swift                     # 改造：debugLog 与 os.Logger 并存（Release 也能出诊断日志）
 
 scripts/
-├── build-permission-artifact.sh    # 新增：构建并复制可长期启动的 ~/Applications/MacsyZones-dbg.app（R14）
+├── build-permission-artifact.sh    # 新增：构建并复制可长期启动的 /Applications/MacsyZones.app（R14）
 ├── check_permission_model.sh       # 新增：抽取真实源码片段做值逻辑断言 + 不变量 grep（R15）
 └── permission-smoke.sh             # 新增：启动上面那个产物、断言权限日志、确认无崩溃
 
@@ -95,4 +95,4 @@ scripts/tests/
 | 无 XCTest target | 工程没有测试 target，新增会改 pbxproj 与签名流程 | 沿用 002 的三层验证（构建 + 桩脚本 + 运行期日志断言），不新增 target |
 | 无 27.3 SDK | 本机 Xcode 27.2 只有 `MacOSX27.2.sdk`，无法编译 27.3 新符号 | 只用 27.0 可达 API + 运行时版本判定；面板差异靠 `ProcessInfo` 与深链，不依赖新常量 |
 | 双形态面板文案 | 27.0–27.2 旧面板 vs 27.3+ 拆分面板 | 用 `operatingSystemVersion` 分支文案（非 `#available`），两套文案集中在 `PermissionGuidance.swift` |
-| 构建产物会被清理 | `scripts/build-debug.sh` 用 `trap cleanup EXIT` 删除派生数据，跑完即无产物可启动 | 新增 `scripts/build-permission-artifact.sh`，固定 `-derivedDataPath /tmp/m003-debug` 并复制到 `~/Applications/MacsyZones-dbg.app`，供冒烟与手动矩阵反复启动 |
+| 构建产物会被清理 | `scripts/build-debug.sh` 用 `trap cleanup EXIT` 删除派生数据，跑完即无产物可启动 | 新增 `scripts/build-permission-artifact.sh`，固定 `-derivedDataPath /tmp/m003-debug` 并复制到 `/Applications/MacsyZones.app`，供冒烟与手动矩阵反复启动 |

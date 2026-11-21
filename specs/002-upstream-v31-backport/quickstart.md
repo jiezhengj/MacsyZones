@@ -90,16 +90,16 @@ xcodebuild -project MacsyZones.xcodeproj -scheme MacsyZones -configuration Debug
   CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=C7C84AAA3B67FACEA73042570A0BA2FC3D19E613 \
   DEVELOPMENT_TEAM=74FR87HYTH build
 
-rm -rf ~/Applications/MacsyZones-dbg.app
-cp -R /tmp/mz-authorized/Build/Products/Debug/MacsyZones.app ~/Applications/MacsyZones-dbg.app
-open ~/Applications/MacsyZones-dbg.app
-# 系统设置 → 隐私与安全性 → 辅助功能 → 勾选 MacsyZones-dbg；每次重新构建后要重新拷贝并确认仍被勾选
+rm -rf /Applications/MacsyZones.app
+cp -R /tmp/mz-authorized/Build/Products/Debug/MacsyZones.app /Applications/MacsyZones.app
+open /Applications/MacsyZones.app
+# 系统设置 → 隐私与安全性 → 辅助功能 → 勾选 MacsyZones；每次重新构建替换后确认仍被勾选
 ```
 
 随后从终端启动它，才能把日志刷到屏幕：
 
 ```bash
-~/Applications/MacsyZones-dbg.app/Contents/MacOS/MacsyZones 2>&1 | tee /tmp/macsyzones.log
+/Applications/MacsyZones.app/Contents/MacOS/MacsyZones 2>&1 | tee /tmp/macsyzones.log
 # 另开一个终端观察对账与注册：
 tail -f /tmp/macsyzones.log | grep -E "Reconcile:|observer ready|Giving up"
 ```

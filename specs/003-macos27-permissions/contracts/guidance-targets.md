@@ -38,7 +38,7 @@
 
 ## 演示/冒烟契约
 
-`scripts/permission-smoke.sh` 依赖 `~/Applications/MacsyZones-dbg.app`（由 `scripts/build-permission-artifact.sh` 产出，见 `research.md` R14）与以下可观察输出（`log show --predicate 'subsystem == "MeowingCat.MacsyZones" AND category == "permissions"'`）：
+`scripts/permission-smoke.sh` 依赖 `/Applications/MacsyZones.app`（由 `scripts/build-permission-artifact.sh` 产出，见 `research.md` R14）与以下可观察输出（`log show --predicate 'subsystem == "MeowingCat.MacsyZones" AND category == "permissions"'`）：
 
 - 进程启动 10 秒内至少一条 `capability=windowControl` 的记录，包含 `status=` 与 `trigger=launch`。
 - 每条记录包含 `latencyMs=`，且窗口控制探针 `latencyMs < 1000`。

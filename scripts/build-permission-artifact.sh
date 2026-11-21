@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
-# 003-macos27-permissions（research.md R14）：产出可反复启动的正式签名验证副本。
+# 003-macos27-permissions（research.md R14）：构建并就地替换正式版，用于权限验证。
 #
 # scripts/build-debug.sh 末尾的 trap cleanup 会删除派生数据，跑完没有可启动产物；
-# 而 TCC 按「已签名 app 的固定路径」记录授权，冒烟脚本与手动矩阵都需要一个
-# 路径稳定、签名正式的副本。本脚本把 Debug 产物固定复制到 ~/Applications/MacsyZones-dbg.app。
+# 而 TCC 按 app 身份与路径记录授权。这里直接把 Debug 产物装到正式路径
+# /Applications/MacsyZones.app（与用户日常使用的 app 同名同路径，不产生额外副本），
+# 避免「验证用一个名字、正式版用另一个名字」导致 TCC 里出现多条互不相干的记录。
 #
 # 用法：bash scripts/build-permission-artifact.sh
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DERIVED="/tmp/m003-debug"
-APP_BUNDLE="$HOME/Applications/MacsyZones-dbg.app"
+APP_BUNDLE="/Applications/MacsyZones.app"
 
 cd "$REPO_ROOT"
 
@@ -31,17 +32,25 @@ if [[ ! -d "$BUILT_APP" ]]; then
   exit 1
 fi
 
-echo "==> 复制到验证副本（${APP_BUNDLE}）"
-rm -rf "$APP_BUNDLE"
-mkdir -p "$HOME/Applications"
-cp -R "$BUILT_APP" "$APP_BUNDLE"
+echo "==> 退出正在运行的 MacsyZones"
+pkill -f "MacsyZones.app/Contents/MacOS/MacsyZones" 2>/dev/null || true
+sleep 1
+
+echo "==> 替换正式版（${APP_BUNDLE}）"
+if [[ -w "$(dirname "$APP_BUNDLE")" ]]; then
+  rm -rf "$APP_BUNDLE"
+  cp -R "$BUILT_APP" "$APP_BUNDLE"
+else
+  echo "FAIL: 没有写权限，无法替换 ${APP_BUNDLE}" >&2
+  exit 1
+fi
 
 echo "==> 校验签名"
 bash scripts/verify-signing.sh "$APP_BUNDLE"
 
 if [[ ! -x "$APP_BUNDLE/Contents/MacOS/MacsyZones" ]]; then
-  echo "FAIL: 验证副本缺少可执行文件" >&2
+  echo "FAIL: ${APP_BUNDLE} 缺少可执行文件" >&2
   exit 1
 fi
 
-echo "PASS: 验证副本已生成（~/Applications/MacsyZones-dbg.app）"
+echo "PASS: 正式版已替换为当前构建（/Applications/MacsyZones.app）；如需授权，请在系统设置里为它打开权限"
