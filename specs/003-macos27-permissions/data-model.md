@@ -107,7 +107,7 @@ struct AppInfo {                    // 与 schema 的 app 段一一对应
 
 - `static let shared`；`func start()` / `func stop()`；`@Published private(set) var snapshot: PermissionSnapshot`。
 - `@Published private(set) var hasCompletedFirstCheck: Bool`：首轮探测（含全部能力）完成前为 false。所有「未授权才展示引导」的 UI 判定必须先等它为 true，否则已授权用户每次启动都会闪一次未授权引导。
-- `var onStatusChange: ((PermissionCapability, PermissionStatus, PermissionStatus) -> Void)?`：状态迁移回调（主线程调用），供输入监听监视器按「装/卸」响应（见 R13）。
+- `var onStatusChange: ((PermissionCapability, PermissionStatus, PermissionStatus) -> Void)?`：状态迁移回调（主线程调用），供全局监视器按能力类型装/卸：`windowControl` 驱动鼠标类、`inputMonitoring` 驱动键盘类（见 R13）。
 - `func recheck(trigger: String)`：合并并发请求（同一 trigger 1 秒内去重）；探针在 `DispatchQueue(label: "...permissions.probe", qos: .utility)` 执行，结果 `Task { @MainActor in }` 回写。
 - `func reportAXFailure(_ error: AXError)`：仅当 `error == .apiDisabled` 时触发 `recheck(trigger: "ax-failure")`。
 - 调度：启动 `+0s` 一次；`granted` 后 30s 轮询；非 `granted` 时 5s × 最多 24 次；由 `NSWorkspace.didActivateApplication`、`NSWorkspace.didWake`（均注册在 `NSWorkspace.shared.notificationCenter`）、设置窗口 `NSWindow.didBecomeKey`（注册在 `NotificationCenter.default`）、菜单栏点击、`reportAXFailure` 触发额外复核。`NSApplication.didBecomeActive` 在 `.prohibited` 激活策略下可能永不触发，只作可选补充（`MacsyZones/App.swift` 中 `NSApp.setActivationPolicy(.prohibited)`）。

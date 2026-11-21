@@ -27,7 +27,7 @@ bash scripts/build-permission-artifact.sh
 
 脚本行为（`research.md` R14）：`xcodebuild -configuration Debug -derivedDataPath /tmp/m003-debug` 构建 → 覆盖复制到 `~/Applications/MacsyZones-dbg.app` → `bash scripts/verify-signing.sh ~/Applications/MacsyZones-dbg.app`。
 
-期望输出：`BUILD SUCCEEDED` 与 `PASS: 正式签名 Debug 构建完成（Bundle ID: MeowingCat.MacsyZones）`，且 `~/Applications/MacsyZones-dbg.app` 存在。
+期望输出：`BUILD SUCCEEDED`、`verify-signing.sh` 的 `PASS: 正式签名身份…均一致`、以及脚本末行 `PASS: 验证副本已生成（~/Applications/MacsyZones-dbg.app）`，且该目录存在。
 
 ## 二、静态与桩断言
 
@@ -90,7 +90,7 @@ bash scripts/permission-smoke.sh
 
 预期：
 
-- **没有 60 秒静默期**：运行期撤销属确定性操作，10 秒内（轮询 5 秒）识别并降级为「暂停吸附」，横幅/诊断显示未授权（`research.md` R4、`data-model.md` 状态机）。
+- **没有 60 秒静默期**：运行期撤销属确定性操作，10 秒内识别并降级为「暂停吸附」，横幅/诊断显示未授权。机制是「交互触发即时复核（拖动触发 AX 失败 → `reportAXFailure`，或点菜单/诊断面板）+ 无交互时 5 秒轮询兜底」，不是靠 `granted` 期间那 30 秒轮询（`research.md` R4、`data-model.md` 状态机）。
 - 应用不崩溃；再次授权后自动恢复（回到场景 B 的预期）。
 - 反向验证宽限只用于登录期：杀掉进程后立刻在授权仍有效的情况下重启，前 60 秒内即使探针短暂 `denied` 也不得出现未授权提示（结合场景 G 一起看）。
 
@@ -112,7 +112,7 @@ bash scripts/permission-smoke.sh
 
 预期：`inputMonitoring=denied`、`windowControl=granted`；**鼠标拖动吸附照常可用**；仅修饰键/吸附键驱动的布局切换与吸附键组合暂停，横幅说明「缺少输入监控」；Carbon 全局快捷键仍工作。重新打开输入监控后**不重启**也应恢复键盘功能（`research.md` R13 的补装路径）。
 
-**F2 只关窗口控制**：系统设置 → 隐私与安全性 → System & App Protection Override（27.3+）或辅助功能（27.0–27.2）中关闭 MacsyZones → 重启 app。
+**F2 只关窗口控制**：系统设置 → 隐私与安全性 → System & App Protection Override（27.3+）或 Device Control and Data Access（27.0–27.2，旧称「辅助功能」）中关闭 MacsyZones → 重启 app。
 
 预期：`windowControl=denied`、`inputMonitoring=granted`；鼠标拖动/悬停高亮/右键菜单不工作且不弹崩溃；Carbon 快捷键仍工作；布局编辑器可打开、保存时提示只读；横幅指向正确面板。重新打开后**不重启**应恢复拖动（鼠标类监视器按 `windowControl` 状态补装）。
 
@@ -149,6 +149,16 @@ top -pid "$PID" -l 5 -stats pid,cpu | tail -6
 ```
 
 预期：`sample` 结果里探针不出现在主线程栈顶（都在后台队列）；`top` 的闲置 CPU 平均值 ≤ 2%。
+
+### 场景 K：27.0–27.2 旧形态手工验证（SC-006）
+
+**前置**：需要一台仍在 27.0–27.2 的机器（本机已是 27.3，无法降级）。若没有可用机器，本场景**必须标注「未实机验证」**，不得写成已验证（与场景 D 的升级路径同样处理，见 `tasks.md` T039）。
+
+1. 在同一份构建产物上确认引导文案指向 **Device Control and Data Access**（不是 27.3 的 `System & App Protection Override`）。
+2. 点击引导按钮，确认打开的是 `Privacy_Accessibility` 面板（`x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility`），且授权后 `windowControl` 变为 `granted`。
+3. 确认深链失败时回退到 `privacyRoot`（隐私与安全性根面板）。
+
+预期：三处行为与 27.3+ 分支表格一致（`research.md` R3 的两套映射）；诊断报告 `system.productVersion` 落在 `27.0`–`27.2` 时走 `legacyAccessibility` 分支。
 
 ## 五、诊断报告
 
