@@ -42,7 +42,7 @@ bash scripts/check_permission_model.sh
 1. 用 `awk` 从 `MacsyZones/PermissionCenter.swift`、`MacsyZones/PermissionGuidance.swift` 抽出**真实**的汇总/版本判定函数，与 `scripts/tests/permission-stubs.swift` 的纯值类型拼成可编译单元，由 `scripts/tests/permission-assertions.swift` 逐格断言：`-25211` → denied、`-25204`/超时/目标缺失 → unknown、表 7 种组合、宽限 60 秒边界、27.0–27.2 与 27.3+ 的 pane 选择。
 2. 不变量 grep：三个新增源文件（`PermissionCenter.swift`、`PermissionGuidance.swift`、`PermissionDiagnosticsView.swift`）中不出现 `#available`、`AXUIElementSetAttributeValue`、`exit(`；`Info.swift` 的对话框路径不再出现 `exit(0)`。
 
-> 该脚本与 `scripts/permission-smoke.sh` 由本 feature 的任务创建（见 `tasks.md` T013、T028）；首次执行前不存在属正常。
+> 该脚本与 `scripts/permission-smoke.sh` 由本 feature 的任务创建（`tasks.md` T014 建 `check_permission_model.sh`、T031 建 `permission-smoke.sh`）；首次执行前不存在属正常。
 
 ## 三、运行期冒烟
 
