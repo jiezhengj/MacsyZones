@@ -2,9 +2,12 @@
   "schema_version": "1.0",
   "extensions": {
     "assess": {
-      "version": "1.0.1",
-      "source": "local",
-      "manifest_hash": "sha256:a1c87d9ce8088e7865f1d352137777a693b0595ccc310957c7c051a604ca1db2",
+      "version": "1.0.2",
+      "source": {
+        "kind": "catalog",
+        "catalog": "default"
+      },
+      "manifest_hash": "sha256:c446e95c0cfc9482eb794fa90d428c5da3257162515db2cebd9ae3ec534d1919",
       "enabled": true,
       "priority": 10,
       "registered_commands": {
@@ -16,19 +19,16 @@
           "speckit.assess.decide"
         ]
       },
-      "registered_skills": [
-        "speckit-assess-intake",
-        "speckit-assess-research",
-        "speckit-assess-define",
-        "speckit-assess-shape",
-        "speckit-assess-decide"
-      ],
+      "registered_skills": [],
       "installed_at": "2026-09-28T09:03:58.542710+00:00"
     },
     "bug": {
-      "version": "1.0.0",
-      "source": "local",
-      "manifest_hash": "sha256:1d0da5458f3c18ff08cf1602d88cecc33fad07068208951fb7128090cfa90c90",
+      "version": "1.0.2",
+      "source": {
+        "kind": "catalog",
+        "catalog": "default"
+      },
+      "manifest_hash": "sha256:00ec851a8e57713e9d65401e4c7fa5b4fa4a689decacb0b654ba5411c653b647",
       "enabled": true,
       "priority": 10,
       "registered_commands": {
@@ -38,11 +38,7 @@
           "speckit.bug.test"
         ]
       },
-      "registered_skills": [
-        "speckit-bug-assess",
-        "speckit-bug-fix",
-        "speckit-bug-test"
-      ],
+      "registered_skills": [],
       "installed_at": "2026-09-28T09:03:59.607115+00:00"
     }
   }
