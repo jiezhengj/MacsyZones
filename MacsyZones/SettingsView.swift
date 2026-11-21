@@ -99,6 +99,11 @@ struct SettingsView: View {
                     Divider().padding(.vertical, 2)
 
                     AdvancedSettingsSection(state: state)
+
+                    Divider().padding(.vertical, 2)
+
+                    // T029：权限诊断 section（T028 新建的 PermissionDiagnosticsView.swift）。
+                    PermissionDiagnosticsSection()
                 }
                 .padding()
             }

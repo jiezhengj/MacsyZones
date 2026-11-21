@@ -57,12 +57,12 @@
 
 **独立验收**：设置里能看到三能力状态与探针明细；「复制报告」产出能通过 `quickstart.md` 五 的逐字段校验；`log show` 能按子系统过滤到权限日志。
 
-- [ ] T028 [US3] 新建 `MacsyZones/PermissionDiagnosticsView.swift`：展示各能力状态、最近检测时间、探针明细（`id`/`target`/`axError`/`latencyMs`）、`AppInfo`（含 `path`/`isTranslocated`/`isLoginItem`）与 `SystemInfo`，底部「重新检测」「复制报告」（FR-016）
-- [ ] T029 [US3] 在 `MacsyZones/SettingsView.swift` 的 `AdvancedSettingsSection`（`:798`）之后插入 `PermissionDiagnosticsSection`（依赖 T024 已改过该文件，顺序固定）
-- [ ] T030 [US3] 在 `MacsyZones/PermissionCenter.swift` 实现 `PermissionDiagnosticReport`（`Codable`，`schemaVersion = 1`）并复制到 `NSPasteboard`：字段严格按 `data-model.md`「DiagnosticReport」与 `contracts/permission-report.schema.json` 的 `required` 列表（`schemaVersion`/`generatedAt`/`app`/`system`/`capabilities`/`notes`），`capabilities[].probes[]` 逐条带 `id`/`target`/`status`/`latencyMs`（`axError` 可空）；不采集窗口标题与个人数据（FR-017/FR-018）
-- [ ] T031 [US3] 新建 `scripts/permission-smoke.sh`：确保 `~/Applications/MacsyZones-dbg.app` 存在（不存在则先调 `scripts/build-permission-artifact.sh`）→ 启动 20 秒 → `log show --last 1m --predicate 'subsystem == "MeowingCat.MacsyZones" AND category == "permissions"'` → 断言至少一条含 `capability=windowControl`、`status=`、`trigger=launch`、`latencyMs=` 且 `latencyMs < 1000` 的记录，且**首条 `trigger=launch` 记录与进程启动时间戳相差 ≤ 10 秒**（契约 clause），进程存活、无 `fatal error` → 结束进程；输出 `PASS: 权限日志与进程状态正常（<N> 条权限记录）`（契约见 `contracts/guidance-targets.md`「演示/冒烟契约」）
-- [ ] T032 [US3] 从诊断面板复制报告，按 `quickstart.md`「五、诊断报告」的校验脚本执行，要求输出 `PASS: 报告结构符合契约`；把失败字段修正到通过为止
-- [ ] T033 [US3] 执行 `quickstart.md` 场景 H（`/tmp` 运行与 translocation）：确认 `app.path`/`isTranslocated` 如实呈现、状态允许 `denied` 但面板解释清楚、不崩溃；结论回填 `quickstart.md`
+- [x] T028 [US3] 新建 `MacsyZones/PermissionDiagnosticsView.swift`：展示各能力状态、最近检测时间、探针明细（`id`/`target`/`axError`/`latencyMs`）、`AppInfo`（含 `path`/`isTranslocated`/`isLoginItem`）与 `SystemInfo`，底部「重新检测」「复制报告」（FR-016）
+- [x] T029 [US3] 在 `MacsyZones/SettingsView.swift` 的 `AdvancedSettingsSection`（`:798`）之后插入 `PermissionDiagnosticsSection`（依赖 T024 已改过该文件，顺序固定）
+- [x] T030 [US3] 在 `MacsyZones/PermissionCenter.swift` 实现 `PermissionDiagnosticReport`（`Codable`，`schemaVersion = 1`）并复制到 `NSPasteboard`：字段严格按 `data-model.md`「DiagnosticReport」与 `contracts/permission-report.schema.json` 的 `required` 列表（`schemaVersion`/`generatedAt`/`app`/`system`/`capabilities`/`notes`），`capabilities[].probes[]` 逐条带 `id`/`target`/`status`/`latencyMs`（`axError` 可空）；不采集窗口标题与个人数据（FR-017/FR-018）
+- [x] T031 [US3] 新建 `scripts/permission-smoke.sh`：确保 `~/Applications/MacsyZones-dbg.app` 存在（不存在则先调 `scripts/build-permission-artifact.sh`）→ 启动 20 秒 → `log show --last 1m --predicate 'subsystem == "MeowingCat.MacsyZones" AND category == "permissions"'` → 断言至少一条含 `capability=windowControl`、`status=`、`trigger=launch`、`latencyMs=` 且 `latencyMs < 1000` 的记录，且**首条 `trigger=launch` 记录与进程启动时间戳相差 ≤ 10 秒**（契约 clause），进程存活、无 `fatal error` → 结束进程；输出 `PASS: 权限日志与进程状态正常（<N> 条权限记录）`（契约见 `contracts/guidance-targets.md`「演示/冒烟契约」）
+- [x] T032 [US3] 从诊断面板复制报告，按 `quickstart.md`「五、诊断报告」的校验脚本执行，要求输出 `PASS: 报告结构符合契约`；把失败字段修正到通过为止
+- [x] T033 [US3] 执行 `quickstart.md` 场景 H（`/tmp` 运行与 translocation）：确认 `app.path`/`isTranslocated` 如实呈现、状态允许 `denied` 但面板解释清楚、不崩溃；结论回填 `quickstart.md`
 
 # 阶段 6：US4 全局输入监听单独检测与降级（P2）
 

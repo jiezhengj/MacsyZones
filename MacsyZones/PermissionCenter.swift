@@ -35,7 +35,7 @@ enum PermissionCapability: String, CaseIterable, Sendable {
 }
 
 /// 三态权限状态（R1）：granted / denied / unknown，另有 notRequired。
-enum PermissionStatus: String, Sendable {
+enum PermissionStatus: String, Codable, Sendable {
     /// 已授权且探针证实可用（探针返回 .success）。
     case granted
     /// 系统明确拒绝（kAXErrorAPIDisabled / preflight 为 false）。
@@ -46,8 +46,8 @@ enum PermissionStatus: String, Sendable {
     case notRequired
 }
 
-/// 单条探针记录（data-model.md「PermissionProbe」）。
-struct PermissionProbe: Sendable {
+/// 单条探针记录（data-model.md「PermissionProbe」；Codable 供诊断报告序列化）。
+struct PermissionProbe: Codable, Sendable {
     /// 探针标识："frontmost" | "finder" | "api" | "preflight"。
     let id: String
     /// 探针目标：bundle id 或 "system"。
@@ -75,7 +75,7 @@ struct CapabilityState: Sendable {
 }
 
 /// 系统信息（schema 的 system.* 段一一对应）。
-struct SystemInfo: Sendable {
+struct SystemInfo: Codable, Sendable {
     /// ProcessInfo.operatingSystemVersion 转 "27.3"。
     let productVersion: String
     /// 系统 Build（如 26C5047e），解析失败为 "unknown"。
@@ -85,7 +85,7 @@ struct SystemInfo: Sendable {
 }
 
 /// App 信息（schema 的 app.* 段一一对应）。
-struct AppInfo: Sendable {
+struct AppInfo: Codable, Sendable {
     /// CFBundleShortVersionString，缺省 "0"。
     let marketingVersion: String
     /// CFBundleVersion，缺省 "0"。
@@ -755,5 +755,83 @@ final class PermissionCenter: ObservableObject {
             isTranslocated: isTranslocated,
             isLoginItem: isLoginItem
         )
+    }
+}
+
+// MARK: - 诊断报告（T030，contracts/permission-report.schema.json + data-model.md）
+
+/// 诊断报告（schemaVersion 1）。字段名与 schema 严格一致：
+/// capabilities[].required = id/status/lastCheckedAt/probes，可选 lastError/trigger；
+/// probes[].required = id/target/status/latencyMs，axError 可空；
+/// lastChangedAt / suspectUntil 不进报告。nil 可选字段由 JSONEncoder 自动省略。
+struct PermissionDiagnosticReport: Codable {
+    let schemaVersion: Int
+    /// ISO 8601 带时区（如 2026-11-21T13:00:00Z）。
+    let generatedAt: String
+    let app: AppInfo
+    let system: SystemInfo
+    let capabilities: [PermissionDiagnosticCapability]
+    /// 可选备注（如部分目标受控说明）。
+    let notes: [String]?
+}
+
+/// 报告里的单能力段（与 CapabilityState 字段子集）。
+struct PermissionDiagnosticCapability: Codable {
+    let id: String
+    let status: String
+    let lastCheckedAt: String
+    let probes: [PermissionProbe]
+    let lastError: String?
+    let trigger: String?
+}
+
+extension PermissionCenter {
+    /// 由当前快照生成诊断报告；快照未生成时返回 nil。
+    func makeDiagnosticReport() -> PermissionDiagnosticReport? {
+        guard let snapshot = snapshot else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+
+        var notes: [String] = []
+        if let windowState = snapshot.capabilities.first(where: { $0.capability == .windowControl }),
+           windowState.status == .granted,
+           let frontmost = windowState.probes.first(where: { $0.id == "frontmost" }),
+           let finder = windowState.probes.first(where: { $0.id == "finder" }),
+           !PermissionRules.partialTargets(frontmost: frontmost.status, finder: finder.status).isEmpty {
+            notes.append("部分目标受控：" + PermissionRules.partialTargets(frontmost: frontmost.status, finder: finder.status).joined(separator: "、"))
+        }
+
+        return PermissionDiagnosticReport(
+            schemaVersion: 1,
+            generatedAt: formatter.string(from: Date()),
+            app: snapshot.app,
+            system: snapshot.system,
+            capabilities: snapshot.capabilities.map { state in
+                PermissionDiagnosticCapability(
+                    id: state.capability.rawValue,
+                    status: state.status.rawValue,
+                    lastCheckedAt: formatter.string(from: state.lastCheckedAt),
+                    probes: state.probes,
+                    lastError: state.lastError,
+                    trigger: state.trigger
+                )
+            },
+            notes: notes.isEmpty ? nil : notes
+        )
+    }
+
+    /// 「复制报告」：把 JSON 写入剪贴板（pretty + sortedKeys，便于人读与校验）。
+    /// 返回是否成功写入；快照未生成时返回 false。
+    @discardableResult
+    func copyDiagnosticReport() -> Bool {
+        guard let report = makeDiagnosticReport() else { return false }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let data = try? encoder.encode(report),
+              let json = String(data: data, encoding: .utf8) else { return false }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(json, forType: .string)
+        return true
     }
 }

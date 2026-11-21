@@ -152,6 +152,13 @@ bash scripts/permission-smoke.sh
 
 预期：`path` 如实显示 `/tmp/...`；若 macOS 对 `/tmp` 位置做 translocation，`isTranslocated=true`；状态允许为 `denied`（未授权属正常），但面板必须解释清楚，且不崩溃。此场景用于验证诊断面板能区分「路径问题」与「权限问题」。
 
+实测记录（2026-11-21，自动化部分完成，面板目视部分留待人工）：
+
+- 拷贝 `~/Applications/MacsyZones-dbg.app` → `/tmp/mz-tmp-run/MacsyZones.app` 启动：进程存活（PID 11860），`lsof` 证实可执行文件路径为 `/private/tmp/mz-tmp-run/MacsyZones.app/Contents/MacOS/MacsyZones`（无 translocation 介质层）。
+- `xattr` 检查：产物无 `com.apple.quarantine`（仅 `macl`/`provenance`），故运行期 `isTranslocated` 应为 `false`——诊断面板如实显示路径而无需触发 translocation 分支（外部可复核）。
+- 30 秒内 permissions 日志 21 条、无 fatal/crash 记录；状态 `denied` 属未授权正常态。
+- 留待人工：诊断面板目视确认 `路径` 显示 `/tmp/...`、`是否从临时位置迁移运行=否`（本机无 quarantine，未覆盖 `isTranslocated=true` 分支；如需覆盖须给产物加 `com.apple.quarantine` 扩展属性后重跑）。
+
 ### 场景 I：登录项启动（SC-004）
 
 1. 在设置中把 MacsyZones 设为登录项（若产品已有该开关）或手工加入系统设置的登录项。
@@ -250,6 +257,11 @@ PY
 ```
 
 该脚本覆盖 schema 实际用到的 `type`（含 `["string","null"]` 这类可空写法）、`const`、`enum`、`required`、`additionalProperties: false`、`minItems`/`maxItems`、`minimum`。缺字段、枚举越界、多余字段都会失败退出（已用正反样例自测：合法样例 PASS，删掉 `app.teamID` 且把 `status` 改成 `weird` 的样例报两条错误并 exit 1）。
+
+实测记录（2026-11-21，自动化）：
+
+- 「复制报告」按钮由诊断面板 GUI 触发，本机未授权会话中留待人工点击；自动化等价路径已验证：`scripts/tests/permission-report-harness.swift`（`swiftc` 编译 `PermissionCenter.swift` 后运行）调用生产端同一 `JSONEncoder`（pretty + sortedKeys）生成 `/tmp/m003-report.json`，再跑上面的 python 脚本 → `PASS: 报告结构符合契约 {'windowControl': 'denied', 'inputMonitoring': 'denied', 'eventPosting': 'notRequired'}`。
+- 说明：命令行环境 `Bundle.main` 不指向 App bundle，harness 的 App 段改从验证副本 `~/Applications/MacsyZones-dbg.app` 的 Info.plist 实读版本/Build/bundleID（与真实运行值同源）；`teamID` 使用 AGENTS.md 固定签名 Team 常量（真实运行时由 SecCode 从签名读取同一值）。
 
 ## 六、日志取证
 
