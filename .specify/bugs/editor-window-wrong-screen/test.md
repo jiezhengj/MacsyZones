@@ -22,6 +22,8 @@
 | Regression suite | `bash scripts/check_layout_selection.sh` | pass | `PASS: 布局选择一致性回归通过（下拉选中项与四个按钮共用同一名字）` |
 | Regression suite | `bash scripts/check_lazy_lifecycle.sh` | pass | `PASS: 139 assertions against actual UserLayout/startEditing/stopEditing/toggleEditing source` |
 | Build / signing | `bash scripts/build-debug.sh` | pass | `** BUILD SUCCEEDED **` + `PASS: 正式签名 Debug 构建完成（Bundle ID: MeowingCat.MacsyZones）` |
+| 发布版安装 | `build-release-dmg.sh 2.1.2 patch` → 挂载 DMG 覆盖 `/Applications/MacsyZones.app` | pass | `CFBundleShortVersionString = 2.1.2`，`verify-signing.sh` PASS，启动 pid 22447 |
+| 发布版真机复测 | 在 v2.1.2 上重跑复现步骤：选 `Built-in Retina Display` + `小屏` → `Edit`；再切 `U27N3G6R4B` → `Edit` | pass | 内置屏编辑层 `(0,33) 1470×923` + 编辑条 `(735,495)`；外置屏编辑层 `(1470,-454) 2561×1361`；测试区块已取消，`小屏` 仍为 0 区块 |
 
 ## Output Excerpts
 
