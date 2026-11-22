@@ -3,33 +3,48 @@
 - **Slug**: layout-size-1px-truncation
 - **Fixed**: 2026-11-22
 - **Assessment**: ./assessment.md
+- **Status**: applied
 
-## 变更摘要
+## Summary
 
-在「百分比 → 点」的唯一出口做边缘取整，不改持久化格式。
+把「百分比 → 点」的换算改为按屏幕边界的四条边取整，`830` 存成 `0.5763888888888888` 后回乘不再是 `829.9999999999999` 而是 `830`；持久化格式仍是百分比，`onSave` 的换算方式未动。
 
-- `MacsyZones/UserData.swift` `SectionConfig.getRect(on:)`：先算 `minX/minY/maxX/maxY` 四条边并 `.rounded()`，宽高由取整后的边相减。`830 / 1440` 回乘得到的 `829.9999999999999` 现在落回 `830`。
-- `MacsyZones/UserData.swift` `SectionConfig.getAXRect(on:)`：屏幕坐标（下边 `minY`、上边 `maxY`）取整后再翻成 AX 坐标，宽高与 `getRect` 完全一致；写其他 app 窗口 `kAXPositionAttribute`/`kAXSizeAttribute` 时不再带亚像素。
-- 新增 `scripts/check_layout_geometry.sh`：静态断言（两处必须使用边缘取整、不得残留裸乘）+ 算术断言（830 用例、1100×690 不变、相邻区块共享边不错缝）。
+## Changes
 
-## 为什么放在这里
+| File | Change | Notes |
+|------|--------|-------|
+| `MacsyZones/UserData.swift` | modified | `SectionConfig.getRect(on:)` 改为 `minX/minY/maxX/maxY` 各自 `.rounded()` 后由边相减求宽高 |
+| `MacsyZones/UserData.swift` | modified | `SectionConfig.getAXRect(on:)` 同一策略，AX 写入不再拿到亚像素尺寸 |
+| `scripts/check_layout_geometry.sh` | added | 静态断言取整实现 + 算术回归（829.9999 → 830、1100 不变、相邻共享边不错缝） |
 
-- 保存端（`onSave`）本来就只能拿到整数点窗口尺寸，损失发生在回乘；改存储端无效。
-- `getRect`/`getAXRect` 是编辑器窗口、`reArrange`、AX 写入的公共入口，一处修复覆盖全部消费者。
-- 边缘取整（而不是「原点取整 + 宽高各自取整」）保证相邻区块共享的边落在同一条整点线上，不会产生 1 点缝。
+## Diff Highlights
 
-## 验证
-
+```swift
+// getRect(on:)：边缘取整
+let minX = (screen.frame.origin.x + screen.frame.width * xPercentage).rounded()
+let maxX = (screen.frame.origin.x + screen.frame.width * (xPercentage + widthPercentage)).rounded()
+let minY = (screen.frame.origin.y + screen.frame.height * yPercentage).rounded()
+let maxY = (screen.frame.origin.y + screen.frame.height * (yPercentage + heightPercentage)).rounded()
+return NSRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
 ```
-bash scripts/check_layout_geometry.sh
-# reported zone legacy height=829.9999999999999 fixed height=830.0
-# PASS: 布局几何回归通过（百分比往返不丢点，相邻区块不错缝）
 
-bash scripts/build-debug.sh
-# PASS: 正式签名 Debug 构建完成（Bundle ID: MeowingCat.MacsyZones）
-```
+## Tests Added or Updated
 
-## 未改动
+- `scripts/check_layout_geometry.sh` — 断言两个换算函数必须包含 `maxX`/`maxY`/`minX` 的取整行且不再出现裸 `let width = screen.frame.width * widthPercentage`；内嵌 Swift 断言固定 `1440 × (830/1440) = 830`、`2560 × (1100/2560) = 1100`、1470 与 1100×690 保持不变、左右相邻区块 `left.maxX == right.minX`。
 
-- `UserLayouts.json` 格式（仍存百分比）；`onSave`、`getUpdated`、`reArrange` 的换算方式。
-- 网格布局（`layoutType == .grid`）不经过 `SectionConfig`，无影响。
+## Local Verification
+
+- Commands run: `bash scripts/check_layout_geometry.sh` → `PASS: 布局几何回归通过（百分比往返不丢点，相邻区块不错缝）`，输出行 `reported zone legacy height=829.9999999999999 fixed height=830.0`。
+- Commands run: `bash scripts/build-debug.sh` → `** BUILD SUCCEEDED **`、`PASS: 正式签名 Debug 构建完成（Bundle ID: MeowingCat.MacsyZones）`，警告仅基线一条。
+- Commands run: `bash scripts/build-permission-artifact.sh` → 正式版 `/Applications/MacsyZones.app` 已替换为新构建，`open -a` 启动后进程稳定。
+- Manual checks: 用用户实机 `UserLayouts.json` 的真实百分比做算术复核（`/tmp/geom.swift`）：zone1 `1470×830`、zone2 `1100×690`、坐标不变。未做点击级「拖到 830 → 保存 → 重进」的目视确认，本机 GUI 自动化被 TCC 阻断。
+
+## Deviations from Assessment
+
+无。实现与评估的 Preferred 方案一致；`getAXRect` 同样按四边取整（评估已列出该文件，未限制具体函数）。
+
+## Follow-ups
+
+- 人工验收一次拖拽保存，确认窗口实际高度显示 830。
+- 若将来持久化格式改为整点像素，可移除这层取整（当前不改格式）。
+- 网格布局不走 `SectionConfig`，`scripts/check_lazy_lifecycle.sh` 仍 PASS，无回归。
