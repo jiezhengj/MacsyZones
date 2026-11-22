@@ -562,13 +562,13 @@ struct ScreenChangeWarningView: View {
                 .foregroundColor(.accentColor)
             
             VStack(alignment: .center, spacing: 2) {
-                Text("布局设计")
+                Text("一个布局只属于一个屏幕")
                     .lineSpacing(6)
                     .font(.title2)
 
                 Spacer().frame(height: 16)
 
-                Text("布局可以在一个屏幕上设计。")
+                Text("图标被移回原来的屏幕，因为布局要按它所属屏幕的尺寸保存。")
                     .font(.system(size: 13))
                     .lineSpacing(5)
                     .multilineTextAlignment(.center)
@@ -576,7 +576,7 @@ struct ScreenChangeWarningView: View {
 
                 Spacer().frame(height: 8)
 
-                Text("您可以为每个屏幕和工作区选择首选布局。")
+                Text("想给另一块显示器排布：打开「设置 → 布局」，先选中那块显示器，再选择或新建一个布局。")
                     .font(.system(size: 13))
                     .lineSpacing(5)
                     .multilineTextAlignment(.center)
@@ -589,7 +589,7 @@ struct ScreenChangeWarningView: View {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "info.circle.fill")
                             .foregroundColor(.accentColor)
-                        Text("提示：为每个屏幕和工作区设计不同的布局以适应您的工作流程。")
+                        Text("提示：同一块屏幕的不同工作区可以分别指定布局。")
                             .font(.system(size: 12))
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -699,6 +699,8 @@ class ScreenChangeWarningDialog {
 
 class EditorSectionWindowDelegate: NSObject, NSWindowDelegate {
     weak var sectionWindow: SectionWindow?
+    /// 本次编辑的目标屏幕：由调用方（设置里选中的显示器）显式传入，
+    /// 而不是用编辑框创建那一刻的鼠标屏——否则跨屏时会被判成越界并弹回。
     var originalScreen: NSScreen?
     var hasShownWarning = false
     var warningDialog: ScreenChangeWarningDialog?
@@ -783,13 +785,15 @@ class SectionWindow: Hashable, ObservableObject {
     
     let onDelete: ((SectionWindow) -> Void)
 
-    init(number: Int, layoutWindow: LayoutWindow, sectionConfig: SectionConfig, onDelete: @escaping ((SectionWindow) -> Void)) {
+    init(number: Int, layoutWindow: LayoutWindow, sectionConfig: SectionConfig, onDelete: @escaping ((SectionWindow) -> Void), screen: NSScreen? = nil) {
         self.number = number
         self.sectionConfig = sectionConfig
         self.layoutWindow = layoutWindow
         self.onDelete = onDelete
-        
-        let contentRect = sectionConfig.getRect()
+
+        // 新建区块时也要落在「本次编辑的目标屏幕」上：否则编辑另一块屏幕的布局时，
+        // 点「+」新加出来的蓝框会出现在鼠标所在的那块屏，接着拖过去又被弹回。
+        let contentRect = sectionConfig.getRect(on: screen)
         self.windowSize = contentRect.size
 
         window = NSWindow(contentRect: contentRect,
@@ -853,16 +857,17 @@ class SectionWindow: Hashable, ObservableObject {
         editorWindow.orderOut(nil)
     }
     
-    func reset(sectionConfig: SectionConfig) {
+    func reset(sectionConfig: SectionConfig, on screen: NSScreen? = nil) {
         number = sectionConfig.number!
         self.sectionConfig = sectionConfig
-        
-        let contentRect = sectionConfig.getRect()
+
+        // 位置必须按「本次编辑的目标屏幕」解析；不传时退回鼠标所在屏幕（旧行为）。
+        let contentRect = sectionConfig.getRect(on: screen)
         window.setFrame(contentRect, display: true, animate: false)
         editorWindow.setFrame(contentRect, display: true, animate: false)
         windowSize = contentRect.size
         
-        editorWindowDelegate?.originalScreen = editorWindow.screen
+        editorWindowDelegate?.originalScreen = screen ?? editorWindow.screen
     }
     
     func getBounds(for screen: NSScreen? = nil) -> SectionBounds {
@@ -877,8 +882,8 @@ class SectionWindow: Hashable, ObservableObject {
         )
     }
     
-    func startEditing() {
-        editorWindowDelegate?.originalScreen = editorWindow.screen
+    func startEditing(on screen: NSScreen? = nil) {
+        editorWindowDelegate?.originalScreen = screen ?? editorWindow.screen
         editorWindow.orderFront(nil)
         editorWindow.level = .statusBar - 1
         window.orderOut(nil)
@@ -1032,6 +1037,10 @@ class LayoutWindow: ObservableObject {
     var editorBarHostingView: NSHostingView<EditorBarView>?
     
     var isEditing: Bool = false
+
+    /// 本次编辑的目标屏幕。由设置界面按「选中的显示器」显式传入；
+    /// 为空时退回鼠标所在屏幕（菜单栏/快捷键触发的编辑）。
+    var editingScreen: NSScreen?
     
     var unsavedNewSectionWindows: [SectionWindow] = []
     var unsavedNewSectionConfigs: [Int:SectionConfig] = [:]
@@ -1553,7 +1562,11 @@ class LayoutWindow: ObservableObject {
         let number = nextNumber
         var newSectionConfig = SectionConfig.defaultSection
         newSectionConfig.number = number
-        let sectionWindow = SectionWindow(number: number, layoutWindow: self, sectionConfig: newSectionConfig, onDelete: onSectionDelete)
+        let sectionWindow = SectionWindow(number: number,
+                                          layoutWindow: self,
+                                          sectionConfig: newSectionConfig,
+                                          onDelete: onSectionDelete,
+                                          screen: editingScreen ?? getFocusedScreen())
         sectionWindows.append(sectionWindow)
         
         sectionWindow.editorWindow.orderFront(nil)
@@ -1565,7 +1578,9 @@ class LayoutWindow: ObservableObject {
     }
     
     func onSave() {
-        let focusedScreen = getFocusedScreen()
+        // 百分比一律按「本次编辑的目标屏幕」归一化：编辑框即使被拖到别的显示器，
+        // 也不能把尺寸按错误屏幕换算回布局里。
+        let saveScreen = editingScreen ?? getFocusedScreen()
         
         for number in unsavedNewSectionConfigs.keys {
             guard let newSectionConfig = unsavedNewSectionConfigs[number] else { continue }
@@ -1584,18 +1599,18 @@ class LayoutWindow: ObservableObject {
             
             var screenSize: CGSize
             
-            if let screen = sectionWindow.editorWindow.screen {
+            if let screen = saveScreen {
                 let windowFrame = sectionWindow.editorWindow.frame
                 let screenFrame = screen.frame
                 screenSize = screenFrame.size
-                
+
                 x = windowFrame.origin.x - screenFrame.origin.x
                 y = windowFrame.origin.y - screenFrame.origin.y
             } else {
-                guard let focusedScreen else { continue }
-                
-                screenSize = focusedScreen.frame.size
-                
+                guard let fallbackScreen = sectionWindow.editorWindow.screen else { continue }
+
+                screenSize = fallbackScreen.frame.size
+
                 x = sectionWindow.editorWindow.frame.origin.x
                 y = sectionWindow.editorWindow.frame.origin.y
             }
@@ -1820,8 +1835,12 @@ class LayoutWindow: ObservableObject {
         editorBarWindow.orderOut(nil)
     }
     
-    func startEditing() {
+    func startEditing(on screen: NSScreen? = nil) {
         isEditing = true
+
+        // 目标屏幕优先用调用方给的（设置里选中的显示器），否则用鼠标所在屏幕。
+        let targetScreen = screen ?? getFocusedScreen()
+        editingScreen = targetScreen
         
         sectionWindows.sort {
             let frame1 = $0.window.frame
@@ -1831,12 +1850,12 @@ class LayoutWindow: ObservableObject {
         
         window.orderFront(nil)
         
-        if let focusedScreen = getFocusedScreen() {
-            window.setFrame(focusedScreen.visibleFrame, display: true, animate: false)
-            
+        if let targetScreen {
+            window.setFrame(targetScreen.visibleFrame, display: true, animate: false)
+
             for sectionWindow in sectionWindows {
-                sectionWindow.startEditing()
-                sectionWindow.reset(sectionConfig: sectionWindow.sectionConfig)
+                sectionWindow.startEditing(on: targetScreen)
+                sectionWindow.reset(sectionConfig: sectionWindow.sectionConfig, on: targetScreen)
             }
         } else {
             for sectionWindow in sectionWindows {
@@ -1847,7 +1866,11 @@ class LayoutWindow: ObservableObject {
         
         editorBarWindow.orderFront(nil)
         editorBarWindow.level = .statusBar + 1
-        editorBarWindow.center()
+        if let targetScreen {
+            centerWindowOnScreen(editorBarWindow, screen: targetScreen)
+        } else {
+            editorBarWindow.center()
+        }
     }
     
     func stopEditing() {

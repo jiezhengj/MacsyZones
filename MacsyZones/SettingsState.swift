@@ -102,6 +102,16 @@ class SettingsState: ObservableObject {
     }
 
     // MARK: - Layout Selection for Current Screen
+
+    /// 设置界面里当前选中的那块显示器（越界或屏幕已断开时回退鼠标所在屏幕）。
+    /// 编辑布局时用它作为目标屏幕，保证「选哪块屏就在哪块屏编辑」。
+    var selectedScreen: NSScreen? {
+        guard selectedScreenIndex >= 0, selectedScreenIndex < availableScreens.count else {
+            return getFocusedScreen()
+        }
+        return availableScreens[selectedScreenIndex].screen ?? getFocusedScreen()
+    }
+
     func getLayoutForCurrentScreen() -> String? {
         guard selectedScreenIndex < availableScreens.count else { return nil }
         let screen = availableScreens[selectedScreenIndex]

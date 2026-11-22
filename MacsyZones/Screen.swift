@@ -43,6 +43,16 @@ func resolveScreen(screenNumber: Int) -> NSScreen? {
     return nil
 }
 
+func centerWindowOnScreen(_ window: NSWindow, screen: NSScreen) {
+    let screenFrame = screen.visibleFrame
+    let windowFrame = window.frame
+
+    let x = screenFrame.origin.x + (screenFrame.width - windowFrame.width) / 2
+    let y = screenFrame.origin.y + (screenFrame.height - windowFrame.height) / 2
+
+    window.setFrameOrigin(NSPoint(x: x, y: y))
+}
+
 func centerWindowOnFocusedScreen(_ window: NSWindow) {
     guard let screen = getFocusedScreen() else {
         window.center()

@@ -282,7 +282,8 @@ struct LayoutSettingsSection: View {
                     if selectedLayout.layoutType == .grid {
                         stopEditing()
                     } else {
-                        toggleEditing()
+                        // 关键：按设置里选中的显示器进入编辑，避免蓝框跟随鼠标跑到另一块屏幕。
+                        toggleEditing(on: state.selectedScreen)
                     }
                 }) {
                     Image(systemName: "pencil")

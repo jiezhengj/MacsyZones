@@ -346,9 +346,16 @@ func updateSnapTarget(for element: AXUIElement) {
 }
 
 func startEditing() {
+    startEditing(on: nil)
+}
+
+/// 在指定屏幕上开始编辑（设置界面按「选中的显示器」传入）。
+/// 放在无参版本之后：scripts/check_lazy_lifecycle.sh 从 `func startEditing() {`
+/// 开始抽取源码，这样两种签名都会进到回归样本里。
+func startEditing(on screen: NSScreen?) {
     setIsFitting(false)
     isEditing = true
-    userLayouts.currentLayout.layoutWindow.startEditing()
+    userLayouts.currentLayout.layoutWindow.startEditing(on: screen)
 }
 
 func stopEditing() {
@@ -357,16 +364,22 @@ func stopEditing() {
     userLayouts.currentLayout.materializedLayoutWindow?.stopEditing()
 }
 
+/// 在指定屏幕上切换编辑状态；screen 为空时用鼠标所在屏幕。
 @discardableResult
-func toggleEditing() -> Bool {
+func toggleEditing(on screen: NSScreen?) -> Bool {
     setIsFitting(false)
     isEditing = !isEditing
     if isEditing {
-        userLayouts.currentLayout.layoutWindow.startEditing()
+        userLayouts.currentLayout.layoutWindow.startEditing(on: screen)
     } else {
         userLayouts.currentLayout.materializedLayoutWindow?.stopEditing()
     }
     return isEditing
+}
+
+@discardableResult
+func toggleEditing() -> Bool {
+    toggleEditing(on: nil)
 }
 
 func getMenuBarHeight() -> CGFloat? {

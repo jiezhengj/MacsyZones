@@ -3,6 +3,9 @@ import Foundation
 // UI collaborators only. UserLayout and the editing functions are extracted
 // verbatim from the checkout by check_lazy_lifecycle.sh.
 enum LayoutType { case zone, grid }
+
+// 编辑入口现在带目标屏幕参数（macOS 27 多屏场景），stub 里给一个最小类型即可。
+final class NSScreen {}
 struct GridConfig { var rows: Int; var columns: Int }
 struct SectionConfig { var number: Int?; var name: String? }
 final class FakeWindow {
@@ -16,7 +19,7 @@ final class SectionWindow {
     let window = FakeWindow()
     let editorWindow = FakeWindow()
     init(_ config: SectionConfig) { sectionConfig = config }
-    func reset(sectionConfig: SectionConfig) { self.sectionConfig = sectionConfig }
+    func reset(sectionConfig: SectionConfig, on screen: NSScreen? = nil) { self.sectionConfig = sectionConfig }
 }
 final class LayoutWindow {
     static var allocations = 0
@@ -40,7 +43,7 @@ final class LayoutWindow {
         showCalls += 1; isShown = true
     }
     func hide() { hideCalls += 1; isShown = false }
-    func startEditing() { startEditingCalls += 1 }
+    func startEditing(on screen: NSScreen? = nil) { startEditingCalls += 1 }
     func stopEditing() { stopEditingCalls += 1 }
 }
 final class GridLayoutWindow {
