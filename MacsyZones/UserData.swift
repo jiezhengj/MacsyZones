@@ -609,73 +609,110 @@ class UserLayouts: UserData, ObservableObject {
     }
     
     func renameCurrentLayout(to newName: String) {
-        stopEditing()
-
-        if newName == currentLayoutName { return }
-
-        if let layout = layouts[currentLayoutName] {
-            layout.hideAllWindows()
-
-            layout.name = newName
-            layout.materializedLayoutWindow?.name = newName
-            layout.materializedGridLayoutWindow?.name = newName
-
-            layouts[newName] = layout
-
-            let oldName = currentLayoutName
-            layouts.removeValue(forKey: oldName)
-
-            currentLayoutName = newName
-            spaceLayoutPreferences.setCurrent(layoutName: newName)
-
-            save()
-        }
+        renameLayout(named: currentLayoutName, to: newName)
     }
-    
-    func removeCurrentLayout() {
+
+    /// 按名字重命名布局。设置窗口的「布局」下拉可能选中非活动布局，
+    /// 此时按钮必须作用于选中的那个，而不是全局 currentLayoutName。
+    func renameLayout(named oldName: String, to newName: String) {
         stopEditing()
-        
-        if layouts.count < 2 { return }
-        
-        if let layout = layouts[currentLayoutName] {
-            layout.materializedLayoutWindow?.closeAllWindows()
-            
-            layouts.removeValue(forKey: currentLayoutName)
-            
-            let fallbackLayout = layouts.keys.first!
-            
-            currentLayoutName = fallbackLayout
-            spaceLayoutPreferences.setCurrent(layoutName: fallbackLayout)
+
+        guard let layout = layouts[oldName] else { return }
+        if newName == oldName || layouts[newName] != nil { return }
+
+        layout.hideAllWindows()
+
+        layout.name = newName
+        layout.materializedLayoutWindow?.name = newName
+        layout.materializedGridLayoutWindow?.name = newName
+
+        layouts.removeValue(forKey: oldName)
+        layouts[newName] = layout
+
+        if currentLayoutName == oldName {
+            currentLayoutName = newName
         }
-        
+
+        // 其他屏幕/空间里指向旧名字的偏好一并改正，否则下拉会显示悬空名字。
+        var preferencesChanged = false
+        for (pair, name) in spaceLayoutPreferences.spaces where name == oldName {
+            spaceLayoutPreferences.spaces[pair] = newName
+            preferencesChanged = true
+        }
+        if preferencesChanged {
+            spaceLayoutPreferences.save()
+        }
+
         save()
     }
     
+    func removeCurrentLayout() {
+        removeLayout(named: currentLayoutName)
+    }
+
+    /// 按名字删除布局；被删布局若正被某些屏幕/空间引用，引用改指向兜底布局。
+    /// - Returns: 删除后接替活动的布局名；未删除时返回 nil。
+    @discardableResult
+    func removeLayout(named name: String) -> String? {
+        stopEditing()
+
+        if layouts.count < 2 { return nil }
+        guard let layout = layouts[name] else { return nil }
+
+        layout.materializedLayoutWindow?.closeAllWindows()
+        layout.materializedGridLayoutWindow?.hide()
+
+        layouts.removeValue(forKey: name)
+
+        let fallbackLayout = layouts.keys.first!
+
+        if currentLayoutName == name {
+            currentLayoutName = fallbackLayout
+            spaceLayoutPreferences.setCurrent(layoutName: fallbackLayout)
+        }
+
+        var preferencesChanged = false
+        for (pair, referencedName) in spaceLayoutPreferences.spaces where referencedName == name {
+            spaceLayoutPreferences.spaces[pair] = fallbackLayout
+            preferencesChanged = true
+        }
+        if preferencesChanged {
+            spaceLayoutPreferences.save()
+        }
+
+        save()
+
+        return fallbackLayout
+    }
+    
     func duplicateCurrentLayout(newName: String) {
+        duplicateLayout(named: currentLayoutName, newName: newName)
+    }
+
+    /// 按名字复制布局。复制结果成为活动布局（与旧行为一致）。
+    func duplicateLayout(named name: String, newName: String) {
         stopEditing()
         currentLayout.hideAllWindows()
 
-        if layouts.keys.contains(newName) { return }
+        guard layouts[newName] == nil, let sourceLayout = layouts[name] else { return }
 
-        if let currentLayout = layouts[currentLayoutName] {
-            let duplicatedLayout: UserLayout
+        let duplicatedLayout: UserLayout
 
-            switch currentLayout.layoutType {
-            case .zone:
-                let sectionConfigs = Array(currentLayout.sectionConfigs.values)
-                duplicatedLayout = UserLayout(name: newName, sectionConfigs: sectionConfigs)
-            case .grid:
-                let gridConfig = currentLayout.gridConfig ?? GridConfig.defaultGrid
-                duplicatedLayout = UserLayout(name: newName, gridConfig: gridConfig)
-            }
-
-            layouts[newName] = duplicatedLayout
-
-            currentLayoutName = newName
-            spaceLayoutPreferences.setCurrent(layoutName: newName)
-
-            save()
+        switch sourceLayout.layoutType {
+        case .zone:
+            let sectionConfigs = Array(sourceLayout.sectionConfigs.values)
+            duplicatedLayout = UserLayout(name: newName, sectionConfigs: sectionConfigs)
+        case .grid:
+            let gridConfig = sourceLayout.gridConfig ?? GridConfig.defaultGrid
+            duplicatedLayout = UserLayout(name: newName, gridConfig: gridConfig)
         }
+
+        layouts[newName] = duplicatedLayout
+
+        currentLayoutName = newName
+        spaceLayoutPreferences.setCurrent(layoutName: newName)
+
+        save()
     }
 }
 
@@ -704,13 +741,16 @@ struct SectionConfig: Codable {
             screen = focusedScreen
         }
 
-        let width = screen.frame.width * widthPercentage
-        let height = screen.frame.height * heightPercentage
+        // 百分比是唯一的持久化表示，保存时「整数点 / 屏幕点数」得到的 double 无法精确表示
+        // （例如 830 / 1440），回乘时会落在 829.9999999999999 这类值上，AX 与 WindowServer
+        // 再把亚像素尺寸落成 829，于是每次往返丢 1 点。这里统一按「边缘取整」换算回整点：
+        // 两条边各自取整，宽高由取整后的边相减，既消除浮点残差，也不会让相邻区块错缝。
+        let minX = (screen.frame.origin.x + screen.frame.width * xPercentage).rounded()
+        let minY = (screen.frame.origin.y + screen.frame.height * yPercentage).rounded()
+        let maxX = (screen.frame.origin.x + screen.frame.width * (xPercentage + widthPercentage)).rounded()
+        let maxY = (screen.frame.origin.y + screen.frame.height * (yPercentage + heightPercentage)).rounded()
 
-        let x = screen.frame.origin.x + (screen.frame.width * xPercentage)
-        let y = screen.frame.origin.y + (screen.frame.height * yPercentage)
-
-        return NSRect(x: x, y: y, width: width, height: height)
+        return NSRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
     
     func getAXRect(on targetScreen: NSScreen? = nil) -> NSRect {
@@ -726,17 +766,19 @@ struct SectionConfig: Codable {
             screen = focusedScreen
         }
 
-        let width = screen.frame.width * widthPercentage
-        let height = screen.frame.height * heightPercentage
+        // 与 getRect(on:) 同一套边缘取整：AX 坐标从上往下翻，取整放在屏幕坐标的上下两条边上，
+        // 避免 829.9999999999999 被目标 app 落成 829。
+        let minX = (screen.frame.origin.x + screen.frame.width * xPercentage).rounded()
+        let maxX = (screen.frame.origin.x + screen.frame.width * (xPercentage + widthPercentage)).rounded()
+        let minY = (screen.frame.origin.y + screen.frame.height * yPercentage).rounded()
+        let maxY = (screen.frame.origin.y + screen.frame.height * (yPercentage + heightPercentage)).rounded()
 
-        let x = screen.frame.origin.x + (screen.frame.width * xPercentage)
-        
-        let relY = (screen.frame.height - (screen.frame.height * yPercentage)) - height
-        let y = screen.axY + relY
+        let height = maxY - minY
+        let y = (screen.axY + (screen.frame.height - (maxY - screen.frame.origin.y))).rounded()
 
-        return NSRect(x: x,
+        return NSRect(x: minX,
                       y: y,
-                      width: width,
+                      width: maxX - minX,
                       height: height)
     }
     

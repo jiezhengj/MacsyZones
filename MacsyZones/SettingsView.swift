@@ -230,8 +230,14 @@ struct LayoutSettingsSection: View {
     @State private var showRenameView = false
     @State private var showDuplicateView = false
 
-    var currentLayoutName: String {
+    /// 下拉显示的是「当前屏幕 + 当前空间的首选布局」；本 section 的所有按钮都必须作用于
+    /// 同一个名字，否则会出现「下拉选了小屏、按钮改的却是大屏」。
+    var selectedLayoutName: String {
         state.getLayoutForCurrentScreen() ?? layouts.currentLayoutName
+    }
+
+    var selectedLayout: UserLayout {
+        layouts.layouts[selectedLayoutName] ?? layouts.defaultLayout
     }
 
     var body: some View {
@@ -254,7 +260,7 @@ struct LayoutSettingsSection: View {
             }
 
             Picker("选择布局", selection: Binding(
-                get: { currentLayoutName },
+                get: { selectedLayoutName },
                 set: { state.setLayoutForCurrentScreen($0) }
             )) {
                 ForEach(Array(layouts.layouts.keys), id: \.self) { name in
@@ -269,9 +275,12 @@ struct LayoutSettingsSection: View {
                 let buttonHeight: CGFloat = 25
 
                 Button(action: {
-                    if layouts.currentLayout.layoutType == .grid {
+                    // 编辑针对「下拉选中的布局」：先把它设为活动布局，编辑模式才会作用在它身上。
+                    if layouts.currentLayoutName != selectedLayoutName {
+                        layouts.selectLayout(selectedLayoutName)
+                    }
+                    if selectedLayout.layoutType == .grid {
                         stopEditing()
-                        // Handle grid editor
                     } else {
                         toggleEditing()
                     }
@@ -299,7 +308,12 @@ struct LayoutSettingsSection: View {
                 }
                 .help("新建布局")
 
-                Button(action: { layouts.removeCurrentLayout() }) {
+                Button(action: {
+                    let removedName = selectedLayoutName
+                    if let fallback = layouts.removeLayout(named: removedName) {
+                        state.syncLayoutRemoval(named: removedName, fallback: fallback)
+                    }
+                }) {
                     Image(systemName: "trash")
                         .frame(height: buttonHeight)
                 }
@@ -308,8 +322,8 @@ struct LayoutSettingsSection: View {
             }
             .frame(maxWidth: .infinity)
 
-            if layouts.currentLayout.layoutType == .grid,
-               let gridConfig = layouts.currentLayout.gridConfig {
+            if selectedLayout.layoutType == .grid,
+               let gridConfig = selectedLayout.gridConfig {
                 HStack(spacing: 4) {
                     Image(systemName: "grid")
                         .font(.system(size: 11))
@@ -322,10 +336,16 @@ struct LayoutSettingsSection: View {
             }
         }
         .sheet(isPresented: $showRenameView) {
-            RenameView(isPresented: $showRenameView, layouts: layouts)
+            RenameView(isPresented: $showRenameView,
+                       layouts: layouts,
+                       sourceLayoutName: selectedLayoutName) { oldName, newName in
+                state.syncLayoutReference(from: oldName, to: newName)
+            }
         }
         .sheet(isPresented: $showDuplicateView) {
-            DuplicateView(isPresented: $showDuplicateView, layouts: layouts)
+            DuplicateView(isPresented: $showDuplicateView,
+                          layouts: layouts,
+                          sourceLayoutName: selectedLayoutName)
         }
         .sheet(isPresented: $showNewView) {
             NewView(isPresented: $showNewView, layouts: layouts)
@@ -337,7 +357,11 @@ struct LayoutSettingsSection: View {
 struct RenameView: View {
     @Binding var isPresented: Bool
     @ObservedObject var layouts: UserLayouts
+    let sourceLayoutName: String
+    var onRenamed: ((String, String) -> Void)? = nil
+
     @State private var layoutName: String = ""
+    @State private var showAlreadyExistsAlert: Bool = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -355,8 +379,14 @@ struct RenameView: View {
                 }
 
                 Button(action: {
-                    if layoutName.trimmingCharacters(in: .whitespaces).isEmpty { return }
-                    layouts.renameCurrentLayout(to: layoutName)
+                    let trimmed = layoutName.trimmingCharacters(in: .whitespaces)
+                    if trimmed.isEmpty { return }
+                    if trimmed != sourceLayoutName, layouts.layouts[trimmed] != nil {
+                        showAlreadyExistsAlert = true
+                        return
+                    }
+                    layouts.renameLayout(named: sourceLayoutName, to: trimmed)
+                    onRenamed?(sourceLayoutName, trimmed)
                     isPresented = false
                 }) {
                     Image(systemName: "checkmark").foregroundColor(.green)
@@ -366,8 +396,15 @@ struct RenameView: View {
             }
         }
         .padding(20)
+        .alert(isPresented: $showAlreadyExistsAlert) {
+            Alert(
+                title: Text("提示"),
+                message: Text("已存在同名布局，请选择其他名称。"),
+                dismissButton: .default(Text("好的"))
+            )
+        }
         .onAppear {
-            layoutName = layouts.currentLayoutName
+            layoutName = sourceLayoutName
         }
     }
 }
@@ -376,13 +413,15 @@ struct RenameView: View {
 struct DuplicateView: View {
     @Binding var isPresented: Bool
     @ObservedObject var layouts: UserLayouts
-    @State private var layoutName: String
+    let sourceLayoutName: String
+    @State private var layoutName: String = ""
     @State private var showAlreadyExistsAlert: Bool = false
 
-    init(isPresented: Binding<Bool>, layouts: UserLayouts) {
+    init(isPresented: Binding<Bool>, layouts: UserLayouts, sourceLayoutName: String) {
         self._isPresented = isPresented
         self.layouts = layouts
-        self._layoutName = State(initialValue: layouts.currentLayoutName + " 副本")
+        self.sourceLayoutName = sourceLayoutName
+        self._layoutName = State(initialValue: sourceLayoutName + " 副本")
     }
 
     var body: some View {
@@ -401,12 +440,13 @@ struct DuplicateView: View {
                 }
 
                 Button(action: {
-                    if layoutName.trimmingCharacters(in: .whitespaces).isEmpty { return }
-                    if layouts.layouts.keys.contains(layoutName) {
+                    let trimmed = layoutName.trimmingCharacters(in: .whitespaces)
+                    if trimmed.isEmpty { return }
+                    if layouts.layouts[trimmed] != nil {
                         showAlreadyExistsAlert = true
                         return
                     }
-                    layouts.duplicateCurrentLayout(newName: layoutName)
+                    layouts.duplicateLayout(named: sourceLayoutName, newName: trimmed)
                     isPresented = false
                 }) {
                     Image(systemName: "checkmark").foregroundColor(.green)

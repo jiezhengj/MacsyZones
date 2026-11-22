@@ -126,6 +126,44 @@ class SettingsState: ObservableObject {
         checkForChanges()
     }
 
+    // MARK: - Layout Reference Sync
+    /// 布局被重命名/删除后，把「屏幕 + 空间 → 布局名」的暂存偏好一并改正，
+    /// 否则下拉会显示已经不存在的名字，保存时又会把悬空名字写回磁盘。
+    func syncLayoutReference(from oldName: String, to newName: String) {
+        var changed = false
+
+        for (pair, name) in tempSpacePreferences where name == oldName {
+            tempSpacePreferences[pair] = newName
+            changed = true
+        }
+        for (pair, name) in originalSpacePreferences where name == oldName {
+            originalSpacePreferences[pair] = newName
+            changed = true
+        }
+
+        if changed {
+            checkForChanges()
+        }
+    }
+
+    /// 布局被删除后，把引用它的屏幕/空间偏好改指向兜底布局。
+    func syncLayoutRemoval(named removedName: String, fallback: String) {
+        var changed = false
+
+        for (pair, name) in tempSpacePreferences where name == removedName {
+            tempSpacePreferences[pair] = fallback
+            changed = true
+        }
+        for (pair, name) in originalSpacePreferences where name == removedName {
+            originalSpacePreferences[pair] = fallback
+            changed = true
+        }
+
+        if changed {
+            checkForChanges()
+        }
+    }
+
     // MARK: - Change Detection
     func checkForChanges() {
         let settingsChanged = !areSettingsEqual(tempAppSettings, originalAppSettings)
