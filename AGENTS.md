@@ -349,6 +349,7 @@ upstream ← 上游仓库（rohanrhu/MacsyZones），仅用于拉取更新
 - **默认分支**: `custom`
 - **上游仓库**: `rohanrhu/MacsyZones`（只读，永不推送）
 - **本项目仓库**: `jiezhengj/MacsyZones`（所有推送的目标）
+- **向上游回馈时的例外**: 只在独立 worktree 里、从 `upstream/main` 切分支做干净补丁（不带本 fork 的任何改动），用 `gh pr create` 发起 PR；`custom` 分支永远不推上游。已发起过一次：`jiezhengj:up/macos27-permissions` → PR #121（macOS 27 权限适配）。
 
 ### 同步上游更新（每次需要更新时执行）
 
