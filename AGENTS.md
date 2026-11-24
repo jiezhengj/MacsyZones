@@ -4,12 +4,12 @@
 
 这是 MacsyZones 的自定义版本，移除了所有 Pro 许可证验证和捐赠提醒功能。
 
-**上游仓库**: https://github.com/rohanrhu/MacsyZones（仅用于同步更新，永远不会向上游推送代码或提交 PR）
+**上游仓库**: https://github.com/rohanrhu/MacsyZones（用于同步更新；除经用户同意的一次性回馈补丁外，不向上游推送本 fork 的任何代码）
 **本项目仓库**: https://github.com/jiezhengj/MacsyZones（所有推送操作的目标）
 
 ## ⚠️ 重要规则
 
-1. **永远不会向上游项目推送代码或提交 PR**
+1. **不向上游推送本 fork 的代码**；唯一例外是经用户明确同意的回馈补丁（独立 worktree、从 `upstream/main` 起分支、只含与该回馈相关的干净提交、走 `gh pr create`），见下文「当前状态」
 2. **当用户说"推送 GitHub"时，一定仅指推送到本项目自己的仓库 `jiezhengj/MacsyZones`**
 3. 上游仓库仅用于拉取更新，是单向同步关系
 4. **代码复用优先**：添加或修改功能时，必须先检查上游项目是否已有实现
